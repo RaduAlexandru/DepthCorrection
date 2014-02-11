@@ -5,6 +5,8 @@
 #include <iostream>
 #include <math.h>
 #include <opencv/cv.hpp>
+#include <iostream>
+#include <fstream>
 //-------------------------------------------------i--------------
 class CalibrationMatrix{
 public:
@@ -21,11 +23,11 @@ public:
         this->cols=_cols/tileSize;
         this->layers=this->maxDepth/this->depthRes;
 
-        _data = new double**[layers];
+        _data = new float**[layers];
         for (int i=0; i<layers; i++){
-            _data[i] = new double* [rows];
+            _data[i] = new float* [rows];
             for (int j=0; j< rows; j++){
-                _data[i][j]=new double[cols];
+                _data[i][j]=new float[cols];
                 for (int k=0; k< cols; k++){
                     _data[i][j][k]=1.0f;
 
@@ -33,13 +35,13 @@ public:
             }
         }
 
-        _hits = new double**[layers];
+        _hits = new float**[layers];
         for (int i=0; i<layers; i++){
-            _hits[i] = new double* [rows];
+            _hits[i] = new float* [rows];
             for (int j=0; j< rows; j++){
-                _hits[i][j]=new double[cols];
+                _hits[i][j]=new float[cols];
                 for (int k=0; k< cols; k++){
-                    _hits[i][j][k]=0.0f;
+                    _hits[i][j][k]=1.0f;
 
                 }
             }
@@ -50,8 +52,8 @@ public:
 
     float cell(int r, int c, int d){
         if(useKernel==0)
-//            return _data[d>>depthPow][r>>tilePow][c>>tilePow]/_hits[d>>depthPow][r>>tilePow][c>>tilePow];
-            return _data[d>>depthPow][r>>tilePow][c>>tilePow];
+            return _data[d>>depthPow][r>>tilePow][c>>tilePow]/_hits[d>>depthPow][r>>tilePow][c>>tilePow];
+        //            return _data[d>>depthPow][r>>tilePow][c>>tilePow];
         else if(useKernel){
 
         }
@@ -60,12 +62,12 @@ public:
     void cell(int r, int c, int d, float mply){
 
         if(useKernel==0){
-//            _data[d>>depthPow][r>>tilePow][c>>tilePow]+=mply;
-             _data[d>>depthPow][r>>tilePow][c>>tilePow]=mply;
-            increment(r,c,d);
-//            std::cout << "d: "<<_data[d>>depthPow][r>>tilePow][c>>tilePow];
-//            std::cout<<" h: "<<_hits[d>>depthPow][r>>tilePow][c>>tilePow];
-//            std::cout<<" mplier: "<<cell(r,c,d)<<std::endl;
+            _data[d>>depthPow][r>>tilePow][c>>tilePow]+=mply;
+            //             _data[d>>depthPow][r>>tilePow][c>>tilePow]=mply;
+            //            increment(r,c,d);
+            //            std::cout << "d: "<<_data[d>>depthPow][r>>tilePow][c>>tilePow];
+            //            std::cout<<" h: "<<_hits[d>>depthPow][r>>tilePow][c>>tilePow];
+            //            std::cout<<" mplier: "<<cell(r,c,d)<<std::endl;
         }
         else if(useKernel){
 
@@ -75,6 +77,7 @@ public:
     void increment(int r, int c, int d){
 
         _hits[d>>depthPow][r>>tilePow][c>>tilePow]+=1.0f;
+
     }
 
     void worldToMap(int& ir, int& ic, int& id, int r, int c, int d){
@@ -89,33 +92,97 @@ public:
         d=id<<depthPow;
     }
 
-    void initToZeros(){
+    //    void initToZeros(){
+    //        for (int i=0; i<layers; i++){
+
+    //            for (int j=0; j< rows; j++){
+
+    //                for (int k=0; k< cols; k++){
+    //                    _data[i][j][k]=0.0f;
+
+    //                }
+    //            }
+    //        }
+    //    }
+
+    //    void initToOnes(){
+    //        for (int i=0; i<layers; i++){
+
+    //            for (int j=0; j< rows; j++){
+
+    //                for (int k=0; k< cols; k++){
+    //                    _data[i][j][k]=1.0f;
+
+    //                }
+    //            }
+    //        }
+    //    }
+
+    //    void average(CalibrationMatrix c){
+    //        for (int i=0; i<layers; i++){
+
+    //            for (int j=0; j< rows; j++){
+
+    //                for (int k=0; k< cols; k++){
+    //                    _data[i][j][k]=_data[i][j][k]/c._data[i][j][k];
+
+    //                }
+    //            }
+    //        }
+    //    }
+
+    void serialize(char* filename){
+        std::cout<<"opening handle...";
+        std::ofstream writer(filename);
+        std::cout<<"saving...";
+        std::cout<< layers << " "<<rows << " "<<cols<<std::endl;
+        writer<<layers<<" "<<rows<<" "<<cols<<" "<<std::endl;
+
         for (int i=0; i<layers; i++){
 
             for (int j=0; j< rows; j++){
 
                 for (int k=0; k< cols; k++){
-                    _data[i][j][k]=0.0f;
-
+                    writer<<_data[i][j][k]/_hits[i][j][k]<<" ";
+                    //                    std::cout<<".";
                 }
+
             }
+            writer<<std::endl;
         }
+        writer.close();
+        std::cout<<"done"<<std::endl;
+
     }
 
-    void average(CalibrationMatrix c){
-        for (int i=0; i<layers; i++){
+    void deserialize(char* filename){
+        std::ifstream myfile (filename);
+        int layers;
+        int rows;
+        int cols;
 
-            for (int j=0; j< rows; j++){
+        myfile >> layers >> rows >> cols;
+        std::cout << " from file "<<layers<<" " <<rows<<" "<<cols;
+        std::cout.flush();
+        if(layers!= this->layers && rows != this->rows && cols!=this->cols){
+            std::cout << "file data incosistent"<<std::endl;
+        }
+        else{
+            for (int i=0; i<layers; i++){
 
-                for (int k=0; k< cols; k++){
-                    _data[i][j][k]=_data[i][j][k]/c._data[i][j][k];
+                for (int j=0; j< rows; j++){
+
+                    for (int k=0; k< cols; k++){
+                        myfile>>_data[i][j][k];
+                        std::cout << _data[i][j][k]<<std::endl;
+                    }
 
                 }
+
             }
         }
+        myfile.close();
     }
-
-
 
     int _rows;
     int _cols;
@@ -128,8 +195,8 @@ public:
     int cols;
     int layers;
     bool useKernel;
-    double*** _data;
-    double*** _hits;
+    float*** _data;
+    float*** _hits;
 };
 
 

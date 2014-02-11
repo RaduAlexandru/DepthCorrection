@@ -18,6 +18,7 @@ void FancyViewer::draw()
     if(data.cloud.size()){
         drawPointcloud();
         drawCentralNormal(data.planeCentroid,data.planeCoefficient);
+        drawNormals();
     }
 
 
@@ -26,6 +27,7 @@ void FancyViewer::draw()
 FancyViewer::FancyViewer(QWidget *parent) : QGLViewer(parent)
 {
     printf("-> Viewer initialized\n");
+    rejectPoints=true;
 }
 
 void FancyViewer::init()
@@ -59,6 +61,17 @@ void FancyViewer::drawCentralNormal(Eigen::Vector4f p, Eigen::Vector4f c){
 
 }
 
+void FancyViewer::drawNormals(){
+    //    glPushMatrix();
+    //    glRotatef(180,1,0,0);
+
+    //    for(unsigned int i=0; i<data.normals.size();i++){
+
+    //        pcl::Normal n = data.normals.at(i);
+
+    //    }
+    //    glPopMatrix();
+}
 
 void FancyViewer::drawPointcloud(){
 
@@ -66,13 +79,14 @@ void FancyViewer::drawPointcloud(){
     glRotatef(180,1,0,0);
     pcl::PointXYZRGB p;
     pcl::PointXYZRGB q;
+    pcl::Normal n;
     if(data.cloud.size() == data.errorCloud.size()) {
 
 
         for(unsigned int i=0; i<data.cloud.size();i++){
             p=data.cloud.at(i);
             q=data.errorCloud.at(i);
-
+            n = data.normals.at(i);
 
             uint32_t rgb = *reinterpret_cast<int*>(&p.rgb);
             uint8_t r = (rgb >> 16) & 0x0000ff;
@@ -87,20 +101,32 @@ void FancyViewer::drawPointcloud(){
 
             glVertex3f(p.x,p.y,p.z);
             glEnd();
+            if(rejectPoints==false){
+                glBegin(GL_LINES);
+                glColor3f(0,
+                          0,
+                          0);
+                glVertex3f(p.x,p.y,p.z);
 
-//            glBegin(GL_LINES);
-//            glColor3f(0,
-//                      0,
-//                      0);
-//            glVertex3f(p.x,p.y,p.z);
+
+                glColor3f(0,
+                          1,
+                          0);
 
 
-//            glColor3f(1,
-//                      1,
-//                      0);
-//            glVertex3f(q.x,q.y,q.z);
-            glEnd();
-
+                Eigen::Vector3f n1(n.normal_x,n.normal_y,n.normal_z);
+                Eigen::Vector3f nReference(data.planeCoefficient[0],
+                                           data.planeCoefficient[1],
+                                           data.planeCoefficient[2]);
+                Eigen::Vector3f cross=n1.cross(nReference);
+                if(data.validPoints.at(i)==false){
+                    glColor3f(1,0,0);
+                }
+                glVertex3f(5*n.normal_x+p.x,
+                           5*n.normal_y+p.y,
+                           5*n.normal_z+p.z);
+                glEnd();
+            }
 
 
         }

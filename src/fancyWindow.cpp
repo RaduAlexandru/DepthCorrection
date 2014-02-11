@@ -31,3 +31,22 @@ void FancyWindow::on_recordingData_clicked()
     else sub->recordData=true;
     std::cout << "recording data "<< sub->recordData<<std::endl;
 }
+
+void FancyWindow::on_rejecter_clicked()
+{
+    if(this->viewer->rejectPoints) this->viewer->rejectPoints=false;
+    else this->viewer->rejectPoints=true;
+    std::cout << "rejecting data "<< this->viewer->rejectPoints<<std::endl;
+}
+
+void FancyWindow::on_saveData_clicked()
+{
+    std::cout << "serialization called"<<std::endl;
+    this->sub->multiplier.serialize("prova.txt");
+}
+
+void FancyWindow::on_loadCalibData_clicked()
+{
+    std::cout << "deserialization called"<<std::endl;
+    this->sub->multiplier.deserialize("prova.txt");
+}

@@ -1,12 +1,12 @@
 #include "mySubscriber.h"
 #include <opencv2/opencv.hpp>
 MySubscriber::MySubscriber(FancyViewer* v) : shutdown_required(false),thread(&MySubscriber::spin, *this),
-    multiplier(480,640,10000,4,8),
-    hits(480,640,10000,4,8)
+    multiplier  (480,640,5000,32,64),
+    hits        (480,640,5000,32,64)
 {
 
     this->_viewer=v;
-    hits.initToZeros();
+//    hits.initToOnes();
     applyCorrection=false;
     recordData=false;
 }
@@ -29,6 +29,8 @@ void MySubscriber::callback(const sensor_msgs::ImageConstPtr &imgPtr){
 
         computeCenterCloud();
         computerCenterPlane();
+        computeNormals();
+        pointrejection();
         computeErrorPerPoint();
         computeCalibrationMatrix();
         calibratePointCloudWithMultipliers();
@@ -39,6 +41,8 @@ void MySubscriber::callback(const sensor_msgs::ImageConstPtr &imgPtr){
         payload.planeCoefficient=this->planeCoefficient;
         payload.errorCloud=this->errorCloud;
         payload.correctCloud=this->correctCloud;
+        payload.normals= this->cloud_normals;
+        payload.validPoints=this->validPoints;
         this->queue->data=payload;
         this->_viewer->data=payload;
         this->queue->unlock();
@@ -111,7 +115,7 @@ void MySubscriber::computeCenterCloud(){
         if(sqrt(pix.x*pix.x+pix.y*pix.y)<=_validNormalRange){
             this->centerCloud.push_back(pix);
             pix.z=0;
-            uint8_t r = 255, g = 255, b = 255;    // Example: Red color
+            uint8_t r = 255, g = 255, b = 255;    // white color
             uint32_t rgb = ((uint32_t)r << 16 | (uint32_t)g << 8 | (uint32_t)b);
             cloud.at(i).rgb = *reinterpret_cast<float*>(&rgb);
         }
@@ -131,7 +135,7 @@ void MySubscriber::computerCenterPlane(){
         // Mandatory
         seg.setModelType (pcl::SACMODEL_PLANE);
         seg.setMethodType (pcl::SAC_RANSAC);
-        seg.setDistanceThreshold (0.01);
+        seg.setDistanceThreshold (0.11);
 
         seg.setInputCloud (centerCloud.makeShared ());
         seg.segment (*inliers, *coefficients);
@@ -227,11 +231,15 @@ void MySubscriber::computeCalibrationMatrix(){
                                     localPoint.x,
                                     localPoint.z,(localPoint.z-measuredDistance)/localPoint.z);
 
+                multiplier.increment(localPoint.y,
+                               localPoint.x,
+                               localPoint.z);
+//                hits.increment(localPoint.y,
+//                               localPoint.x,
+//                               localPoint.z);
             }
 
-            hits.increment(localPoint.y,
-                           localPoint.x,
-                           localPoint.z);
+
 
         }
     }
@@ -250,39 +258,74 @@ void MySubscriber::calibratePointCloudWithMultipliers(){
             pcl::PointXYZRGB localPoint = worldToImagePlane(point);
             if(localPoint.x>0 && localPoint.y>0){
 
-                if(applyCorrection)
-                    cloud.at(i).z*= multiplier.cell(localPoint.y,localPoint.x,localPoint.z);
+                if(applyCorrection){
+//                    cloud.at(i).z*= multiplier.cell(localPoint.y,localPoint.x,localPoint.z)/hits.cell(localPoint.y,localPoint.x,localPoint.z);
+                      cloud.at(i).z*= multiplier.cell(localPoint.y,localPoint.x,localPoint.z);
+                }
             }
 
 
         }
     }
-
-
-    //    //    std::cout<<" REF "<< q.planeCentroid.transpose();
-    //    cv::Mat errorImage(480,640,CV_32FC1);
-    //    cv::Mat error(480,640,CV_8UC1);
-    //    errorImage=cv::Mat::zeros(480,640,CV_32FC1);
-    //    cv::Point p;
-    //    for(unsigned int i=0; i<cloud.size();i++){
-    //        pcl::PointXYZRGB localPoint = worldToImagePlane(cloud.at(i));
-    //        p.y=localPoint.y;
-    //        p.x=localPoint.x;
-    //        float v=(float)localPoint.z;
-    //        if(p.x>0 && p.y>0){
-    //            errorImage.at<float>(p)=multiplier.cell(p.y,p.x,localPoint.z);
-    ////            std::cout << " pre: "<<cloud.at(i).z;
-    ////              cloud.at(i).z*=0*multiplier.cell(p.y,p.x,cloud.at(i).z);
-    ////            std::cout << " post: "<<cloud.at(i).z<<std::endl;
-    //        }
-    //    }
-    ////    cv::flip(errorImage,errorImage,0);
-    ////    double min;
-    ////    double max;
-    ////    cv::minMaxLoc(errorImage,&min,&max);
-    ////    errorImage.convertTo(error,CV_8UC1, 255 / (max-min), -min);
-    ////    cv::Mat dest;
-    ////    cv::applyColorMap(error,dest,cv::COLORMAP_OCEAN);
-    ////    cv::imshow("colormap",dest);
-
 }
+
+void MySubscriber::computeNormals(){
+        pcl::NormalEstimationOMP<pcl::PointXYZRGB, pcl::Normal> ne;
+//        pcl::PointCloud<pcl::PointXYZ>::Ptr p(cloud.makeShared());
+        ne.setInputCloud (cloud.makeShared());
+        pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZRGB> ());
+        ne.setSearchMethod (tree);
+        cloud_normals.clear();
+        ne.setRadiusSearch (10); //MALCOM
+        ne.compute (cloud_normals);
+}
+
+
+void MySubscriber::pointrejection(){
+    Eigen::Vector3f nReference(planeCoefficient[0],
+                               planeCoefficient[1],
+                               planeCoefficient[2]);
+    pcl::Normal n;
+    validPoints.clear();
+    for(unsigned int i=0; i<cloud.size();i++){
+        n=cloud_normals.at(i);
+        Eigen::Vector3f n1(n.normal_x,n.normal_y,n.normal_z);
+        Eigen::Vector3f cross=n1.cross(nReference);
+        if(cross.norm()>0.5f){
+            validPoints.push_back(false);
+        }
+        else{
+            validPoints.push_back(true);
+        }
+
+
+    }
+}
+
+//    //    std::cout<<" REF "<< q.planeCentroid.transpose();
+//    cv::Mat errorImage(480,640,CV_32FC1);
+//    cv::Mat error(480,640,CV_8UC1);
+//    errorImage=cv::Mat::zeros(480,640,CV_32FC1);
+//    cv::Point p;
+//    for(unsigned int i=0; i<cloud.size();i++){
+//        pcl::PointXYZRGB localPoint = worldToImagePlane(cloud.at(i));
+//        p.y=localPoint.y;
+//        p.x=localPoint.x;
+//        float v=(float)localPoint.z;
+//        if(p.x>0 && p.y>0){
+//            errorImage.at<float>(p)=multiplier.cell(p.y,p.x,localPoint.z);
+////            std::cout << " pre: "<<cloud.at(i).z;
+////              cloud.at(i).z*=0*multiplier.cell(p.y,p.x,cloud.at(i).z);
+////            std::cout << " post: "<<cloud.at(i).z<<std::endl;
+//        }
+//    }
+////    cv::flip(errorImage,errorImage,0);
+////    double min;
+////    double max;
+////    cv::minMaxLoc(errorImage,&min,&max);
+////    errorImage.convertTo(error,CV_8UC1, 255 / (max-min), -min);
+////    cv::Mat dest;
+////    cv::applyColorMap(error,dest,cv::COLORMAP_OCEAN);
+////    cv::imshow("colormap",dest);
+
+

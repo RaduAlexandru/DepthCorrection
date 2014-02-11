@@ -22,11 +22,13 @@ public:
     FancyViewer(QWidget *parent);
     FancyQueue* queue;
     QueuePayload data;
+    bool rejectPoints;
 private :
     void drawPointcloud();
 
     virtual void draw();
     void drawCentralNormal(Eigen::Vector4f p, Eigen::Vector4f c);
+    void drawNormals();
     virtual void init();
     virtual void animate();
 };

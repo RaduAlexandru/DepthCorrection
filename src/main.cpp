@@ -23,6 +23,26 @@
 #include "CalibrationMatrix.h"
 #include "mySubscriber.h"
 
+class MyApplication : public QApplication
+{
+public:
+    MyApplication(int &argc, char **argv):QApplication ( argc, argv ) {};
+    // ~MyApplication();
+private:
+    bool notify(QObject *receiver_, QEvent *event_)
+    {
+      try
+      {
+        return QApplication::notify(receiver_, event_);
+      }
+      catch (std::exception &ex)
+      {
+        std::cerr << "std::exception was caught at"<<&ex << std::endl;
+      }
+
+      return false;
+    }
+};
 
 int main(int argc, char **argv)
 {
@@ -31,7 +51,7 @@ int main(int argc, char **argv)
     ros::NodeHandle n("xtionCalib");
     std::cout<<"ROSNODE INIT"<<std::endl;
 
-    QApplication qapp(argc, argv);
+    MyApplication qapp(argc, argv);
     FancyWindow w;
     FancyQueue queue;
     MySubscriber mySub(w.viewer);

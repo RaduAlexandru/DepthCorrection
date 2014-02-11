@@ -40,6 +40,12 @@ private slots:
     void on_toggleError_clicked(bool checked);
     void on_recordingData_clicked();
 
+    void on_rejecter_clicked();
+
+    void on_saveData_clicked();
+
+    void on_loadCalibData_clicked();
+
 private:
     Ui::FancyWindow *ui;
 

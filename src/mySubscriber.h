@@ -65,7 +65,8 @@ class MySubscriber{
         void computeErrorPerPoint();
         void computeCalibrationMatrix();
         void calibratePointCloudWithMultipliers();
-
+        void computeNormals();
+        void pointrejection();
         bool applyCorrection;
         bool recordData;
 
@@ -76,8 +77,9 @@ class MySubscriber{
         pcl::PointCloud<pcl::PointXYZRGB> correctCloud;
         pcl::PointCloud<pcl::PointXYZRGB> errorCloud;
         pcl::PointCloud<pcl::PointXYZRGB> centerCloud;
+        pcl::PointCloud<pcl::Normal> cloud_normals;
         cv::Vec3f localToWorld(cv::Vec3f localpoint);
-
+        std::vector<bool> validPoints;
         pcl::PointXYZRGB worldToImagePlane( pcl::PointXYZRGB p);
 };
 
