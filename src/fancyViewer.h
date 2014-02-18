@@ -14,7 +14,7 @@
 #include <stdio.h>
 #include <QGLViewer/qglviewer.h>
 #include "FancyQueue.h"
-#include "CalibrationMatrix.h"
+#include "shared/CalibrationMatrix.h"
 
 class FancyViewer : public QGLViewer
 {

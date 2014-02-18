@@ -1,12 +1,10 @@
 #include "mySubscriber.h"
 #include <opencv2/opencv.hpp>
 MySubscriber::MySubscriber(FancyViewer* v) : shutdown_required(false),thread(&MySubscriber::spin, *this),
-    multiplier  (480,640,5000,32,64),
-    hits        (480,640,5000,32,64)
+    multiplier  (480,640,5000,2,2500)
 {
 
     this->_viewer=v;
-//    hits.initToOnes();
     applyCorrection=false;
     recordData=false;
 }
@@ -62,7 +60,7 @@ void MySubscriber::spin() {
 void MySubscriber::voxelize(){
     pcl::VoxelGrid<pcl::PointXYZRGB> sor;
     sor.setInputCloud (this->cloud.makeShared());
-    float _voxelLeaf =3.0f;
+    float _voxelLeaf =1.0f;
     sor.setLeafSize ((float)_voxelLeaf, (float)_voxelLeaf, (float)_voxelLeaf);
     sor.filter (cloud);
 }
@@ -220,7 +218,7 @@ void MySubscriber::computeCalibrationMatrix(){
             double measuredDistance= diff.norm();
 
             pcl::PointXYZRGB localPoint = worldToImagePlane(point);
-            if(localPoint.x>0 && localPoint.y>0){
+            if(localPoint.x>0 && localPoint.y>0 && validPoints.at(i)){
 
                 if(point.z<projected_point.z)
                     multiplier.cell(localPoint.y,
@@ -232,11 +230,11 @@ void MySubscriber::computeCalibrationMatrix(){
                                     localPoint.z,(localPoint.z-measuredDistance)/localPoint.z);
 
                 multiplier.increment(localPoint.y,
-                               localPoint.x,
-                               localPoint.z);
-//                hits.increment(localPoint.y,
-//                               localPoint.x,
-//                               localPoint.z);
+                                     localPoint.x,
+                                     localPoint.z);
+                //                hits.increment(localPoint.y,
+                //                               localPoint.x,
+                //                               localPoint.z);
             }
 
 
@@ -256,13 +254,23 @@ void MySubscriber::calibratePointCloudWithMultipliers(){
         for(unsigned int i=0; i<cloud.size();i++){
             point=cloud.at(i);
             pcl::PointXYZRGB localPoint = worldToImagePlane(point);
-            if(localPoint.x>0 && localPoint.y>0){
+            cv::Vec3f local(localPoint.x,localPoint.y,localPoint.z);
+            cv::Vec3f tst =localToWorld(local);
 
-                if(applyCorrection){
-//                    cloud.at(i).z*= multiplier.cell(localPoint.y,localPoint.x,localPoint.z)/hits.cell(localPoint.y,localPoint.x,localPoint.z);
-                      cloud.at(i).z*= multiplier.cell(localPoint.y,localPoint.x,localPoint.z);
-                }
-            }
+
+                        if(localPoint.x>0 && localPoint.y>0){
+
+                            if(applyCorrection){
+            //                  cloud.at(i).z*= multiplier.cell(localPoint.y,localPoint.x,localPoint.z)/hits.cell(localPoint.y,localPoint.x,localPoint.z);
+            //                  cloud.at(i).z*= multiplier.cell(localPoint.y,localPoint.x,localPoint.z);
+                                localPoint.z*=multiplier.cell(localPoint.y,localPoint.x,localPoint.z);
+                                cv::Vec3f local(localPoint.x,localPoint.y,localPoint.z);
+                                cv::Vec3f tst =localToWorld(local);
+                                cloud.at(i).x=tst[0];
+                                cloud.at(i).y=-tst[1];
+                                cloud.at(i).z=tst[2];
+                            }
+                        }
 
 
         }
@@ -270,14 +278,14 @@ void MySubscriber::calibratePointCloudWithMultipliers(){
 }
 
 void MySubscriber::computeNormals(){
-        pcl::NormalEstimationOMP<pcl::PointXYZRGB, pcl::Normal> ne;
-//        pcl::PointCloud<pcl::PointXYZ>::Ptr p(cloud.makeShared());
-        ne.setInputCloud (cloud.makeShared());
-        pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZRGB> ());
-        ne.setSearchMethod (tree);
-        cloud_normals.clear();
-        ne.setRadiusSearch (10); //MALCOM
-        ne.compute (cloud_normals);
+    pcl::NormalEstimationOMP<pcl::PointXYZRGB, pcl::Normal> ne;
+    //        pcl::PointCloud<pcl::PointXYZ>::Ptr p(cloud.makeShared());
+    ne.setInputCloud (cloud.makeShared());
+    pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZRGB> ());
+    ne.setSearchMethod (tree);
+    cloud_normals.clear();
+    ne.setRadiusSearch (10); //MALCOM
+    ne.compute (cloud_normals);
 }
 
 
@@ -291,7 +299,7 @@ void MySubscriber::pointrejection(){
         n=cloud_normals.at(i);
         Eigen::Vector3f n1(n.normal_x,n.normal_y,n.normal_z);
         Eigen::Vector3f cross=n1.cross(nReference);
-        if(cross.norm()>0.5f){
+        if(cross.norm()>0.7f){
             validPoints.push_back(false);
         }
         else{

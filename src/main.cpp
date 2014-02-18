@@ -1,6 +1,6 @@
 #include <iostream>
 #include <ros/ros.h>
-#include "CalibrationMatrix.h"
+#include "shared/CalibrationMatrix.h"
 #include <message_filters/subscriber.h>
 #include <message_filters/time_synchronizer.h>
 #include <message_filters/subscriber.h>
@@ -20,7 +20,7 @@
 #include <boost/bind.hpp>
 #include <QApplication>
 #include "fancyWindow.h"
-#include "CalibrationMatrix.h"
+#include "shared/CalibrationMatrix.h"
 #include "mySubscriber.h"
 
 class MyApplication : public QApplication

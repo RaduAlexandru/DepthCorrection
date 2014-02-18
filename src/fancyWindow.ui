@@ -44,7 +44,7 @@
        </spacer>
       </item>
       <item>
-       <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0,0,0,0,0">
+       <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0,0,0,0,0,0,0,0">
         <property name="spacing">
          <number>10</number>
         </property>
@@ -95,6 +95,27 @@
          <widget class="QPushButton" name="saveData">
           <property name="text">
            <string>Save calibration data</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="saveSensorImage">
+          <property name="text">
+           <string>Save sensor image</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="correcting">
+          <property name="text">
+           <string>Correcting</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="recording">
+          <property name="text">
+           <string>Recording</string>
           </property>
          </widget>
         </item>

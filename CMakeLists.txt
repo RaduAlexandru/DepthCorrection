@@ -28,7 +28,7 @@ FIND_PACKAGE(QGLViewer)
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
 SET(my_FORMS src/fancyWindow.ui)
 QT4_WRAP_UI(my_FORMS_HEADERS ${my_FORMS})
-SET(my_HEADERS src/fancyWindow.h src/fancyViewer.h src/mySubscriber.h src/Plane.h src/FancyQueue.h src/CalibrationMatrix.h)
+SET(my_HEADERS src/fancyWindow.h src/fancyViewer.h src/mySubscriber.h src/Plane.h src/FancyQueue.h src/shared/CalibrationMatrix.h)
 QT4_WRAP_CPP(my_HEADERS_MOC ${my_HEADERS})
 INCLUDE(${QT_USE_FILE})
 #ADD_DEFINITIONS(${QT_DEFINITIONS})
@@ -38,12 +38,16 @@ rosbuild_add_executable(standardViewer    src/main.cpp
                                         src/fancyViewer.cpp
                                         src/mySubscriber.cpp
                                         src/FancyQueue.cpp
-                                        src/CalibrationMatrix.cpp
                                         src/Plane.cpp
-${my_FORMS_HEADERS} ${my_HEADERS_MOC})
+                                        ${my_FORMS_HEADERS} ${my_HEADERS_MOC})
+
+
+rosbuild_add_executable(offlineCalibration src/offline/offlineCalibration.cpp src/shared/CalibrationMatrix.h src/offline/search.h)
+
 
 TARGET_LINK_LIBRARIES(standardViewer ${QGLVIEWER_LIBRARY_RELEASE} ${QT_LIBRARIES} )
 rosbuild_link_boost(standardViewer thread signals system)
+
 
 #uncomment if you have defined messages
 #rosbuild_genmsg()

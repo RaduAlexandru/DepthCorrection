@@ -33,7 +33,7 @@
 #include <pcl/common/geometry.h>
 #include "FancyQueue.h"
 #include <omp.h>
-#include "CalibrationMatrix.h"
+#include "shared/CalibrationMatrix.h"
 #include "Plane.h"
 
 
@@ -56,7 +56,6 @@ class MySubscriber{
         bool shutdown_required;
         ecl::Thread thread;
         CalibrationMatrix multiplier;
-        CalibrationMatrix hits;
 
         void computePointcloud();
         void voxelize();

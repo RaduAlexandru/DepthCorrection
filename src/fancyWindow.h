@@ -46,6 +46,8 @@ private slots:
 
     void on_loadCalibData_clicked();
 
+    void on_saveSensorImage_clicked();
+
 private:
     Ui::FancyWindow *ui;
 
