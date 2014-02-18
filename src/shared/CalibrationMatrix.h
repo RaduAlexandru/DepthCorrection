@@ -185,23 +185,25 @@ public:
                     p.y=j;
                     p.x=k;
                     float v= _data[i][j][k]/_hits[i][j][k];
-                    v--;
 
-                    errorImage.at<float>(p)=v;
+
+                    errorImage.at<float>(p)=(v-1)*3000+127;
                 }
 
             }
             cv::flip(errorImage,errorImage,0);
             double min;
             double max;
-            cv::minMaxIdx(errorImage,&min,&max);
-            std::cout << "MIN: "<<min << "MAX: "<<max<<std::endl;
+
             //errorImage.convertTo(error,CV_8UC1, 255.0/(max - min), -min * 255.0/(max - min));
             //errorImage.convertTo(error,CV_8UC1, 255 / (max-min), -min);
-            cv::convertScaleAbs(errorImage, error, 255 / max);
+            errorImage.convertTo(error,CV_8UC1);
+            cv::minMaxIdx(error,&min,&max);
+            std::cout << "MIN: "<<min << "MAX: "<<max<<std::endl;
+            //cv::convertScaleAbs(errorImage, error, 255 / max);
             cv::Mat dest;
             char filename[50];
-            for(int colormap =0;colormap<12;colormap++){
+            for(int colormap =0;colormap<1;colormap++){
                 cv::applyColorMap(error,dest,colormap);
                 sprintf(filename,"COLORMAP[%d]layer_%d.pgm",colormap,i);
                 cv::imwrite(filename,dest);std::cout<< "saved "<<filename<<std::endl;
@@ -236,8 +238,8 @@ public:
             cv::minMaxIdx(errorImage,&min,&max);
             std::cout << "MIN: "<<min << "MAX: "<<max<<std::endl;
             //errorImage.convertTo(error,CV_8UC1, 255.0/(max - min), -min * 255.0/(max - min));
-            //errorImage.convertTo(error,CV_8UC1, 255 / (max-min), -min);
-            cv::convertScaleAbs(errorImage, error, 255 / max);
+            errorImage.convertTo(error,CV_8UC1, 128);
+            //cv::convertScaleAbs(errorImage, error, 255 / max);
             cv::Mat dest;
             char filename[50];
             for(int colormap =0;colormap<12;colormap++){

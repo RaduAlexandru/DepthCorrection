@@ -1,7 +1,7 @@
 #include "mySubscriber.h"
 #include <opencv2/opencv.hpp>
 MySubscriber::MySubscriber(FancyViewer* v) : shutdown_required(false),thread(&MySubscriber::spin, *this),
-    multiplier  (480,640,5000,2,2500)
+    multiplier  (480,640,5000,4,8)
 {
 
     this->_viewer=v;
@@ -60,7 +60,7 @@ void MySubscriber::spin() {
 void MySubscriber::voxelize(){
     pcl::VoxelGrid<pcl::PointXYZRGB> sor;
     sor.setInputCloud (this->cloud.makeShared());
-    float _voxelLeaf =1.0f;
+    float _voxelLeaf =3.0f;
     sor.setLeafSize ((float)_voxelLeaf, (float)_voxelLeaf, (float)_voxelLeaf);
     sor.filter (cloud);
 }

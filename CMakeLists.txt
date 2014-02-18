@@ -42,8 +42,7 @@ rosbuild_add_executable(standardViewer    src/main.cpp
                                         ${my_FORMS_HEADERS} ${my_HEADERS_MOC})
 
 
-rosbuild_add_executable(offlineCalibration src/offline/offlineCalibration.cpp src/shared/CalibrationMatrix.h src/offline/search.h)
-
+rosbuild_add_executable(offlineCalibration src/offline/offlineCalibration.cpp src/shared/CalibrationMatrix.h )
 
 TARGET_LINK_LIBRARIES(standardViewer ${QGLVIEWER_LIBRARY_RELEASE} ${QT_LIBRARIES} )
 rosbuild_link_boost(standardViewer thread signals system)
