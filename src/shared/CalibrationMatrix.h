@@ -9,21 +9,25 @@
 #include <iostream>
 #include <fstream>
 
+using namespace std;
+
 class CalibrationMatrix{
 public:
     CalibrationMatrix(int rows, int cols, int maxDepth, int tileSize, int depthRes){
         useKernel=false;
-        this->_rows=rows;
-        this->_cols=cols;
         this->maxDepth=maxDepth;
         this->tileSize=tileSize;
         this->tilePow=log2(this->tileSize);
         this->depthRes=depthRes;
         this->depthPow=log2(this->depthRes);
-        this->rows=_rows/tileSize;
-        this->cols=_cols/tileSize;
+        this->rows=rows/tileSize;
+        this->cols=cols/tileSize;
         this->layers=this->maxDepth/this->depthRes;
 
+
+	
+	cerr << "tailsaiz: " << this->tileSize  << endl; 
+        cerr << "allocating" << layers << "x" << this->rows << "x" << this->cols << " things" << endl; 
         _data = new float**[layers];
         for (int i=0; i<layers; i++){
             _data[i] = new float* [rows];
@@ -65,13 +69,15 @@ public:
     }
 
     float cell(int r, int c, int d){
-        if(useKernel==0)
-            return _data[d>>depthPow][r>>tilePow][c>>tilePow]/_hits[d>>depthPow][r>>tilePow][c>>tilePow];
+      if(useKernel==0){
+	int h = _hits[d>>depthPow][r>>tilePow][c>>tilePow];
+	if (h){
+	  return _data[d>>depthPow][r>>tilePow][c>>tilePow]/h;
+	}
+	return 1;
         //            return _data[d>>depthPow][r>>tilePow][c>>tilePow];
-        else if(useKernel){
-
-        }
-    }
+      }
+  }
 
     void cell(int r, int c, int d, float mply){
 
@@ -142,7 +148,7 @@ public:
 
     }
     //-----------------------------------------------------------------------------------LOAD FROM FILE
-    void deserialize(char* filename){
+  void deserialize(char* filename){
         std::ifstream myfile (filename);
         int layers;
         int rows;
@@ -172,6 +178,38 @@ public:
         }
         myfile.close();
     }
+
+  CalibrationMatrix* downsample(int dxy, int dd){
+    CalibrationMatrix* downsampled = new CalibrationMatrix(rows*tileSize, cols*tileSize, maxDepth+depthRes*dd, dxy*tileSize, depthRes*dd);
+
+    std::cerr << "allocated" << std::endl;
+
+    std::cerr << "clearing" << std::endl;
+    for (int i=0; i<downsampled->layers; i++){
+      for (int j=0; j< downsampled->rows; j++){
+	for (int k=0; k< downsampled->cols; k++){
+	  downsampled->_data[i][j][k] = 0;
+	  downsampled->_hits[i][j][k] = 0;
+	  downsampled->_covariance[i][j][k] = 0;
+	}
+      }
+    }
+
+    std::cerr << "filling" << std::endl;
+
+    for (int i=0; i<layers; i++){
+      for (int j=0; j< rows; j++){
+	for (int k=0; k< cols; k++){
+	  downsampled->_data[i/dd][j/dxy][k/dxy] += _data[i][j][k];
+	  downsampled->_hits[i/dd][j/dxy][k/dxy] += _hits[i][j][k];
+	  downsampled->_covariance[i/dd][j/dxy][k/dxy] = _covariance[i][j][k];
+	}
+
+      }
+
+    }
+    return downsampled;
+  }
 
     void dumpSensorImages(){
         for (int i=0; i<layers; i++){
@@ -253,8 +291,6 @@ public:
     }
 
     //---------------------------------------------------------------------------------------ATTRIBUTES
-    int _rows;
-    int _cols;
     int maxDepth;
     int tileSize;
     int tilePow;

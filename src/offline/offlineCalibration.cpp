@@ -1,5 +1,5 @@
 #include "../shared/CalibrationMatrix.h"
-#include <opencv2/core.hpp>
+#include <opencv2/opencv.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <dirent.h>
 
@@ -27,10 +27,13 @@ static int one (const struct dirent *unused)
 
 int main(int argc, char **argv)
 {
-    CalibrationMatrix  multiplier  (480,640,5000,4,8);
-    multiplier.deserialize("prova.txt");
-    multiplier.dumpSensorImages();
+    CalibrationMatrix  _multiplier  (480,640,5000,4,8);
+    _multiplier.deserialize("prova.txt");
 
+    std::cerr << "matrix loaded" << std::endl;
+    CalibrationMatrix* scaledMultiplier = _multiplier.downsample(4,4);
+    CalibrationMatrix& multiplier = *scaledMultiplier;
+    multiplier.dumpSensorImages();
     struct dirent **eps;
     int n;
     n = scandir ("./images/", &eps, pgmfilter, alphasort);
