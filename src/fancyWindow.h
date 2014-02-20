@@ -48,6 +48,20 @@ private slots:
 
     void on_saveSensorImage_clicked();
 
+    void on_voxelLeaf_valueChanged(int arg1);
+
+    void on_normalRejection_valueChanged(double arg1);
+
+    void on_planeModelInliers_clicked();
+
+    void on_pointSize_valueChanged(int arg1);
+
+    void on_r_valueChanged(int arg1);
+
+    void on_g_valueChanged(int arg1);
+
+    void on_b_valueChanged(int arg1);
+
 private:
     Ui::FancyWindow *ui;
 

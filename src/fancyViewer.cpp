@@ -30,14 +30,21 @@ FancyViewer::FancyViewer(QWidget *parent) : QGLViewer(parent)
     rejectPoints=true;
 }
 
+void FancyViewer::changeBgColor(){
+    this->setBackgroundColor(QColor(br,bg,bb));
+}
+
 void FancyViewer::init()
 {
-    setGridIsDrawn();
+    br=bb=bg=255;
+    setGridIsDrawn(false);
     startAnimation();
-    setSceneRadius(500);
+    setSceneRadius(8000);
     camera()->setType(qglviewer::Camera::ORTHOGRAPHIC);
     camera()->showEntireScene();
     this->toggleFPSIsDisplayed();
+    this->setBackgroundColor(QColor(br,bg,bb));
+    pointSize=2;
 }
 
 void FancyViewer::drawCentralNormal(Eigen::Vector4f p, Eigen::Vector4f c){
@@ -53,7 +60,7 @@ void FancyViewer::drawCentralNormal(Eigen::Vector4f p, Eigen::Vector4f c){
     Eigen::Vector3f t(c[0],c[1],c[2]);
     t.normalize();
 
-    glVertex3f(p[0]+t[0]*15,p[1]+t[1]*15,p[2]+t[2]*15);
+//    glVertex3f(p[0]+t[0]*550,p[1]+t[1]*550,p[2]+t[2]*550);
 
     glEnd();
     glPopMatrix();
@@ -74,7 +81,7 @@ void FancyViewer::drawNormals(){
 }
 
 void FancyViewer::drawPointcloud(){
-
+    glPointSize((float)pointSize);
     glPushMatrix();
     glRotatef(180,1,0,0);
     pcl::PointXYZRGB p;
@@ -92,7 +99,7 @@ void FancyViewer::drawPointcloud(){
             uint8_t r = (rgb >> 16) & 0x0000ff;
             uint8_t g = (rgb >> 8)  & 0x0000ff;
             uint8_t b = (rgb)       & 0x0000ff;
-            glLineWidth(1.0f);
+            glLineWidth(2.0f);
 
             glBegin(GL_POINTS);
             glColor3f(r,
@@ -110,8 +117,8 @@ void FancyViewer::drawPointcloud(){
 
 
                 glColor3f(0,
-                          1,
-                          0);
+                          0,
+                          1);
 
 
                 Eigen::Vector3f n1(n.normal_x,n.normal_y,n.normal_z);
@@ -122,9 +129,9 @@ void FancyViewer::drawPointcloud(){
                 if(data.validPoints.at(i)==false){
                     glColor3f(1,0,0);
                 }
-                glVertex3f(5*n.normal_x+p.x,
-                           5*n.normal_y+p.y,
-                           5*n.normal_z+p.z);
+                glVertex3f(400*n.normal_x+p.x,
+                           400*n.normal_y+p.y,
+                           400*n.normal_z+p.z);
                 glEnd();
             }
 

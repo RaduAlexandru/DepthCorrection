@@ -23,6 +23,9 @@ public:
     FancyQueue* queue;
     QueuePayload data;
     bool rejectPoints;
+    int pointSize;
+    int br,bg,bb;
+    void changeBgColor();
 private :
     void drawPointcloud();
 

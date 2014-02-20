@@ -56,5 +56,45 @@ void FancyWindow::on_loadCalibData_clicked()
 void FancyWindow::on_saveSensorImage_clicked()
 {
     std::cout << "dumping images"<<std::endl;
-    this->sub->multiplier.dumpSensorImages();
+    //this->sub->multiplier.dumpSensorImages();
+    this->sub->multiplier.dumpCovariance();
+}
+
+void FancyWindow::on_voxelLeaf_valueChanged(int arg1)
+{
+    this->sub->voxelLeaf=(float)arg1;
+}
+
+void FancyWindow::on_normalRejection_valueChanged(double arg1)
+{
+    this->sub->normalRejection=(float)arg1;
+}
+
+void FancyWindow::on_planeModelInliers_clicked()
+{
+    if(this->sub->planeModelInliers) this->sub->planeModelInliers=false;
+    else this->sub->planeModelInliers=true;
+}
+
+void FancyWindow::on_pointSize_valueChanged(int arg1)
+{
+    this->viewer->pointSize=arg1;
+}
+
+void FancyWindow::on_r_valueChanged(int arg1)
+{
+    this->viewer->br=arg1;
+    this->viewer->changeBgColor();
+}
+
+void FancyWindow::on_g_valueChanged(int arg1)
+{
+    this->viewer->bg=arg1;
+    this->viewer->changeBgColor();
+}
+
+void FancyWindow::on_b_valueChanged(int arg1)
+{
+    this->viewer->bb=arg1;
+    this->viewer->changeBgColor();
 }

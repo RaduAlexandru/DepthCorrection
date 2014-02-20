@@ -1,12 +1,15 @@
 #include "mySubscriber.h"
 #include <opencv2/opencv.hpp>
 MySubscriber::MySubscriber(FancyViewer* v) : shutdown_required(false),thread(&MySubscriber::spin, *this),
-    multiplier  (480,640,5000,4,8)
+    multiplier  (480,640,20000,8,1000)
 {
 
     this->_viewer=v;
     applyCorrection=false;
     recordData=false;
+    voxelLeaf=40;
+    normalRejection=0.7f;
+    planeModelInliers=true;
 }
 
 MySubscriber::~MySubscriber(){
@@ -60,7 +63,7 @@ void MySubscriber::spin() {
 void MySubscriber::voxelize(){
     pcl::VoxelGrid<pcl::PointXYZRGB> sor;
     sor.setInputCloud (this->cloud.makeShared());
-    float _voxelLeaf =3.0f;
+    float _voxelLeaf =voxelLeaf;
     sor.setLeafSize ((float)_voxelLeaf, (float)_voxelLeaf, (float)_voxelLeaf);
     sor.filter (cloud);
 }
@@ -73,7 +76,7 @@ void MySubscriber::computePointcloud()
     int cols=this->_image->image.cols;
     int rows=this->_image->image.rows;
     cv::Point p;
-    ushort v;
+    float v;
     pcl::PointXYZRGB pxyz;
     for (int i=0;i<cols;i++){
         for(int j=0;j<rows;j++){
@@ -81,7 +84,10 @@ void MySubscriber::computePointcloud()
 
             p.x=i;
             p.y=j;
-            v=((float)this->_image->image.at<ushort>(p))*0.1f;
+//            if(i==320 && j==240){
+//                std::cout<<"center distance "<<((float)this->_image->image.at<ushort>(p))<<std::endl;
+//            }
+            v=((float)this->_image->image.at<ushort>(p));
 
             if(v!=0){
                 cv::Vec3f localPoint(p.x,p.y,(float)v);
@@ -91,7 +97,7 @@ void MySubscriber::computePointcloud()
                 pxyz.y=worldPoint[1];
                 pxyz.z=worldPoint[2];
 
-                uint8_t r = 0, g = 255, b = 0;    // Example: Red color
+                uint8_t r = 0, g = 0, b = 255;    // Example: Red color
                 uint32_t rgb = ((uint32_t)r << 16 | (uint32_t)g << 8 | (uint32_t)b);
                 pxyz.rgb = *reinterpret_cast<float*>(&rgb);
                 cloud.push_back(pxyz);
@@ -106,14 +112,21 @@ void MySubscriber::computePointcloud()
 void MySubscriber::computeCenterCloud(){
     this->centerCloud.clear();
     pcl::PointXYZRGB pix;
-    _validNormalRange=30.0f;
+    _validNormalRange=300.0f;
     for(unsigned int i=0; i<cloud.size();i++){
         pix=cloud.at(i);
 
         if(sqrt(pix.x*pix.x+pix.y*pix.y)<=_validNormalRange){
             this->centerCloud.push_back(pix);
             pix.z=0;
-            uint8_t r = 255, g = 255, b = 255;    // white color
+            uint8_t r,g,b;
+            if(planeModelInliers){
+             r= 0, g = 255, b = 0;
+            }
+            if(!planeModelInliers){
+                r= 0, g = 0, b = 255;
+            }
+
             uint32_t rgb = ((uint32_t)r << 16 | (uint32_t)g << 8 | (uint32_t)b);
             cloud.at(i).rgb = *reinterpret_cast<float*>(&rgb);
         }
@@ -123,7 +136,7 @@ void MySubscriber::computeCenterCloud(){
 
 
 void MySubscriber::computerCenterPlane(){
-    if(this->centerCloud.size()>10){
+    if(this->centerCloud.size()>20){
         pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
         pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
         // Create the segmentation object
@@ -133,7 +146,7 @@ void MySubscriber::computerCenterPlane(){
         // Mandatory
         seg.setModelType (pcl::SACMODEL_PLANE);
         seg.setMethodType (pcl::SAC_RANSAC);
-        seg.setDistanceThreshold (0.11);
+        seg.setDistanceThreshold (30);
 
         seg.setInputCloud (centerCloud.makeShared ());
         seg.segment (*inliers, *coefficients);
@@ -232,6 +245,11 @@ void MySubscriber::computeCalibrationMatrix(){
                 multiplier.increment(localPoint.y,
                                      localPoint.x,
                                      localPoint.z);
+
+
+//                std::cout<<  multiplier.cell(localPoint.y,
+//                                             localPoint.x,
+//                                             localPoint.z)<<std::endl;
                 //                hits.increment(localPoint.y,
                 //                               localPoint.x,
                 //                               localPoint.z);
@@ -284,7 +302,7 @@ void MySubscriber::computeNormals(){
     pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZRGB> ());
     ne.setSearchMethod (tree);
     cloud_normals.clear();
-    ne.setRadiusSearch (10); //MALCOM
+    ne.setRadiusSearch (300); //MALCOM
     ne.compute (cloud_normals);
 }
 
@@ -299,7 +317,7 @@ void MySubscriber::pointrejection(){
         n=cloud_normals.at(i);
         Eigen::Vector3f n1(n.normal_x,n.normal_y,n.normal_z);
         Eigen::Vector3f cross=n1.cross(nReference);
-        if(cross.norm()>0.7f){
+        if(cross.norm()>normalRejection){
             validPoints.push_back(false);
         }
         else{

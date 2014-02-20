@@ -61,7 +61,7 @@ int main(int argc, char **argv)
 
 //                   if(multiplier.cell(p.y,p.x,v/10)!=1.0f)
 //                        std::cout << "was "<<v;
-                    v*=multiplier.cell(p.y,p.x,v/10);
+                    v*=multiplier.cell(p.y,p.x,v);
 //                    if(multiplier.cell(p.y,p.x,v/10)!=1.0f)
 //                        std::cout << " is "<<v<<std::endl;
 

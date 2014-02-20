@@ -56,6 +56,9 @@ class MySubscriber{
         bool shutdown_required;
         ecl::Thread thread;
         CalibrationMatrix multiplier;
+        float voxelLeaf;
+        float normalRejection;
+        bool planeModelInliers;
 
         void computePointcloud();
         void voxelize();
