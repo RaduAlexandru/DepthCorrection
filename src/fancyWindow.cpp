@@ -98,3 +98,14 @@ void FancyWindow::on_b_valueChanged(int arg1)
     this->viewer->bb=arg1;
     this->viewer->changeBgColor();
 }
+
+void FancyWindow::on_referenceMM_valueChanged(int arg1)
+{
+    this->sub->refenceDistance=arg1;
+}
+
+void FancyWindow::on_referenceError_clicked()
+{
+    if(this->sub->computeRefenceDistance) this->sub->computeRefenceDistance=false;
+    else this->sub->computeRefenceDistance=true;
+}

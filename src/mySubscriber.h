@@ -59,6 +59,8 @@ class MySubscriber{
         float voxelLeaf;
         float normalRejection;
         bool planeModelInliers;
+        bool computeRefenceDistance;
+        int refenceDistance;
 
         void computePointcloud();
         void voxelize();

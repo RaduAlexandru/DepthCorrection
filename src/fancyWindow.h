@@ -62,6 +62,10 @@ private slots:
 
     void on_b_valueChanged(int arg1);
 
+    void on_referenceMM_valueChanged(int arg1);
+
+    void on_referenceError_clicked();
+
 private:
     Ui::FancyWindow *ui;
 

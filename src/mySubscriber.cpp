@@ -10,6 +10,8 @@ MySubscriber::MySubscriber(FancyViewer* v) : shutdown_required(false),thread(&My
     voxelLeaf=40;
     normalRejection=0.7f;
     planeModelInliers=true;
+    computeRefenceDistance=false;
+    refenceDistance=0;
 }
 
 MySubscriber::~MySubscriber(){
@@ -84,9 +86,9 @@ void MySubscriber::computePointcloud()
 
             p.x=i;
             p.y=j;
-//            if(i==320 && j==240){
-//                std::cout<<"center distance "<<((float)this->_image->image.at<ushort>(p))<<std::endl;
-//            }
+            if(i==320 && j==240){
+                std::cout<<"center distance "<<((float)this->_image->image.at<ushort>(p))<<" ";
+            }
             v=((float)this->_image->image.at<ushort>(p));
 
             if(v!=0){
@@ -265,10 +267,11 @@ void MySubscriber::computeCalibrationMatrix(){
 
 void MySubscriber::calibratePointCloudWithMultipliers(){
 
-    if(applyCorrection){
+    if(applyCorrection || 1){
         pcl::PointXYZRGB point;
         pcl::PointXYZRGB projected_point;
-
+        float averageError=0;
+        float averageDistance=0;
         for(unsigned int i=0; i<cloud.size();i++){
             point=cloud.at(i);
             pcl::PointXYZRGB localPoint = worldToImagePlane(point);
@@ -287,10 +290,21 @@ void MySubscriber::calibratePointCloudWithMultipliers(){
                                 cloud.at(i).x=tst[0];
                                 cloud.at(i).y=-tst[1];
                                 cloud.at(i).z=tst[2];
+                                averageDistance+=cloud.at(i).z;
+                                averageError+=pow(cloud.at(i).z-(float)refenceDistance,2);
+//                                std::cout <<"\t readen "<< cloud.at(i).z << " has to be "<< refenceDistance<< " incremental error is " << averageError<<std::endl;
+                            }
+                            else{
+                                averageError+=pow(cloud.at(i).z-(float)refenceDistance,2);
+                                averageDistance+=cloud.at(i).z;
+//                                std::cout <<"\t readen "<< cloud.at(i).z << " has to be "<< refenceDistance<< " incremental error is " << averageError<<std::endl;
                             }
                         }
 
 
+        }
+        if(computeRefenceDistance){
+            std::cout <<"average distance "<<averageDistance/cloud.size() <<" average error "<<sqrt(averageError)/cloud.size()<<"mm" << std::endl;
         }
     }
 }
