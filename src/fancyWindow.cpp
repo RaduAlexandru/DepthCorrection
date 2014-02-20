@@ -56,8 +56,8 @@ void FancyWindow::on_loadCalibData_clicked()
 void FancyWindow::on_saveSensorImage_clicked()
 {
     std::cout << "dumping images"<<std::endl;
-    //this->sub->multiplier.dumpSensorImages();
-    this->sub->multiplier.dumpCovariance();
+    this->sub->multiplier.dumpSensorImages();
+    //this->sub->multiplier.dumpCovariance();
 }
 
 void FancyWindow::on_voxelLeaf_valueChanged(int arg1)

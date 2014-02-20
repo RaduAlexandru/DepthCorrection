@@ -1,7 +1,7 @@
 #include "mySubscriber.h"
 #include <opencv2/opencv.hpp>
 MySubscriber::MySubscriber(FancyViewer* v) : shutdown_required(false),thread(&MySubscriber::spin, *this),
-    multiplier  (480,640,20000,8,1000)
+    multiplier  (480,640,20000,2,64)
 {
 
     this->_viewer=v;
