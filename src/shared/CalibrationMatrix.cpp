@@ -252,6 +252,8 @@ void CalibrationMatrix::dumpSensorImages(){
         for(int colormap =0;colormap<1;colormap++){
             cv::applyColorMap(error,dest,colormap);
             sprintf(filename,"COLORMAP[%d]layer_%d.pgm",colormap,i);
+            cv::resize(dest, dest, cv::Size(80,60), 0, 0, cv::INTER_CUBIC );
+            cv::resize(dest, dest, cv::Size(320,240), 0, 0, cv::INTER_CUBIC );
             cv::imwrite(filename,dest);std::cout<< "saved "<<filename<<std::endl;
             //std::cout<< "saved "<<filename<<std::endl;
         }

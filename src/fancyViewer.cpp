@@ -37,7 +37,7 @@ void FancyViewer::changeBgColor(){
 void FancyViewer::init()
 {
     br=bb=bg=255;
-    setGridIsDrawn(false);
+    setGridIsDrawn(true);
     startAnimation();
     setSceneRadius(8000);
     camera()->setType(qglviewer::Camera::ORTHOGRAPHIC);
@@ -60,7 +60,7 @@ void FancyViewer::drawCentralNormal(Eigen::Vector4f p, Eigen::Vector4f c){
     Eigen::Vector3f t(c[0],c[1],c[2]);
     t.normalize();
 
-//    glVertex3f(p[0]+t[0]*550,p[1]+t[1]*550,p[2]+t[2]*550);
+    glVertex3f(p[0]+t[0]*550,p[1]+t[1]*550,p[2]+t[2]*550);
 
     glEnd();
     glPopMatrix();

@@ -13,10 +13,14 @@ set(CMAKE_BUILD_TYPE Debug)
 #SET(laser_FORMS src/laserWindow.ui)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake_modules/")
 
+set(CMAKE_C_FLAGS_RELEASE "-O3 -funroll-loops")
+set(CMAKE_CXX_FLAGS "-O3 -funroll-loops")
+set(CMAKE_BUILD_TYPE Release)
+
 find_package(OpenMP)
 if (OPENMP_FOUND)
     set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}" )
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}" )
+    set (CMAKE_CXX_RelFLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}" )
 endif()
 
 find_package(Eigen3 REQUIRED)
@@ -28,7 +32,7 @@ FIND_PACKAGE(QGLViewer)
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
 SET(my_FORMS src/fancyWindow.ui)
 QT4_WRAP_UI(my_FORMS_HEADERS ${my_FORMS})
-SET(my_HEADERS src/fancyWindow.h src/fancyViewer.h src/mySubscriber.h src/Plane.h src/FancyQueue.h src/shared/CalibrationMatrix.h)
+SET(my_HEADERS src/fancyWindow.h src/fancyViewer.h src/mySubscriber.h src/Plane.h src/FancyQueue.h src/shared/CalibrationMatrix.h src/PCL_normEst.h)
 QT4_WRAP_CPP(my_HEADERS_MOC ${my_HEADERS})
 INCLUDE(${QT_USE_FILE})
 #ADD_DEFINITIONS(${QT_DEFINITIONS})
@@ -40,10 +44,15 @@ rosbuild_add_executable(standardViewer    src/main.cpp
                                         src/FancyQueue.cpp
                                         src/Plane.cpp
                                         src/shared/CalibrationMatrix.cpp
+                                        src/PCL_normEst.h
+                                        src/CGAL_normEst.h
                                         ${my_FORMS_HEADERS} ${my_HEADERS_MOC})
 
 
 rosbuild_add_executable(offlineCalibration src/offline/offlineCalibration.cpp src/shared/CalibrationMatrix.h src/shared/CalibrationMatrix.cpp)
+
+rosbuild_add_executable(rosToPGM src/batch/rosToPGM.cpp src/shared/CalibrationMatrix.h src/shared/CalibrationMatrix.cpp)
+rosbuild_add_executable(batchCalib src/batch/batchCalib.cpp src/shared/CalibrationMatrix.h src/shared/CalibrationMatrix.cpp)
 
 TARGET_LINK_LIBRARIES(standardViewer ${QGLVIEWER_LIBRARY_RELEASE} ${QT_LIBRARIES} )
 rosbuild_link_boost(standardViewer thread signals system)

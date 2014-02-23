@@ -1,7 +1,9 @@
 #include "mySubscriber.h"
 #include <opencv2/opencv.hpp>
+#include <pcl/features/integral_image_normal.h>
+
 MySubscriber::MySubscriber(FancyViewer* v) : shutdown_required(false),thread(&MySubscriber::spin, *this),
-    multiplier  (480,640,20000,2,64)
+    multiplier  (480,640,10000,2,128)
 {
 
     this->_viewer=v;
@@ -29,8 +31,8 @@ void MySubscriber::callback(const sensor_msgs::ImageConstPtr &imgPtr){
 
         computePointcloud();
         voxelize();
-
-        computeCenterCloud();
+        computeCenterSquareCloud();
+        //computeCenterCloud();
         computerCenterPlane();
         computeNormals();
         pointrejection();
@@ -87,7 +89,7 @@ void MySubscriber::computePointcloud()
             p.x=i;
             p.y=j;
             if(i==320 && j==240){
-                std::cout<<"center distance "<<((float)this->_image->image.at<ushort>(p))<<" ";
+                //                std::cout<<"center distance "<<((float)this->_image->image.at<ushort>(p))<<" ";
             }
             v=((float)this->_image->image.at<ushort>(p));
 
@@ -104,10 +106,45 @@ void MySubscriber::computePointcloud()
                 pxyz.rgb = *reinterpret_cast<float*>(&rgb);
                 cloud.push_back(pxyz);
             }
+            else{
+                cv::Vec3f localPoint(p.x,p.y,(float)v);
+                cv::Vec3f worldPoint=localToWorld(localPoint);
+
+                pxyz.x=worldPoint[0];
+                pxyz.y=worldPoint[1];
+                pxyz.z=NAN;
+
+                uint8_t r = 0, g = 0, b = 255;    // Example: Red color
+                uint32_t rgb = ((uint32_t)r << 16 | (uint32_t)g << 8 | (uint32_t)b);
+                pxyz.rgb = *reinterpret_cast<float*>(&rgb);
+                cloud.push_back(pxyz);
+            }
         }
     }
 
 
+}
+void MySubscriber::computeCenterSquareCloud(){
+    this->centerCloud.clear();
+    pcl::PointXYZRGB pix;
+    for(unsigned int i=0; i<cloud.size();i++){
+        pix=cloud.at(i);
+        pcl::PointXYZRGB local = worldToImagePlane(pix);
+        if(local.x>240 && local.x<400 && local.y>140 && local.y<340){
+            this->centerCloud.push_back(pix);
+            pix.z=0;
+            uint8_t r,g,b;
+            if(planeModelInliers){
+                r= 0, g = 255, b = 0;
+            }
+            if(!planeModelInliers){
+                r= 0, g = 0, b = 255;
+            }
+
+            uint32_t rgb = ((uint32_t)r << 16 | (uint32_t)g << 8 | (uint32_t)b);
+            cloud.at(i).rgb = *reinterpret_cast<float*>(&rgb);
+        }
+    }
 }
 
 
@@ -123,7 +160,7 @@ void MySubscriber::computeCenterCloud(){
             pix.z=0;
             uint8_t r,g,b;
             if(planeModelInliers){
-             r= 0, g = 255, b = 0;
+                r= 0, g = 255, b = 0;
             }
             if(!planeModelInliers){
                 r= 0, g = 0, b = 255;
@@ -138,7 +175,7 @@ void MySubscriber::computeCenterCloud(){
 
 
 void MySubscriber::computerCenterPlane(){
-    if(this->centerCloud.size()>20){
+    if(this->centerCloud.size()>10){
         pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
         pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
         // Create the segmentation object
@@ -148,7 +185,7 @@ void MySubscriber::computerCenterPlane(){
         // Mandatory
         seg.setModelType (pcl::SACMODEL_PLANE);
         seg.setMethodType (pcl::SAC_RANSAC);
-        seg.setDistanceThreshold (30);
+        seg.setDistanceThreshold (50);
 
         seg.setInputCloud (centerCloud.makeShared ());
         seg.segment (*inliers, *coefficients);
@@ -249,9 +286,9 @@ void MySubscriber::computeCalibrationMatrix(){
                                      localPoint.z);
 
 
-//                std::cout<<  multiplier.cell(localPoint.y,
-//                                             localPoint.x,
-//                                             localPoint.z)<<std::endl;
+                //                std::cout<<  multiplier.cell(localPoint.y,
+                //                                             localPoint.x,
+                //                                             localPoint.z)<<std::endl;
                 //                hits.increment(localPoint.y,
                 //                               localPoint.x,
                 //                               localPoint.z);
@@ -279,27 +316,27 @@ void MySubscriber::calibratePointCloudWithMultipliers(){
             cv::Vec3f tst =localToWorld(local);
 
 
-                        if(localPoint.x>0 && localPoint.y>0){
+            if(localPoint.x>0 && localPoint.y>0){
 
-                            if(applyCorrection){
-            //                  cloud.at(i).z*= multiplier.cell(localPoint.y,localPoint.x,localPoint.z)/hits.cell(localPoint.y,localPoint.x,localPoint.z);
-            //                  cloud.at(i).z*= multiplier.cell(localPoint.y,localPoint.x,localPoint.z);
-                                localPoint.z*=multiplier.cell(localPoint.y,localPoint.x,localPoint.z);
-                                cv::Vec3f local(localPoint.x,localPoint.y,localPoint.z);
-                                cv::Vec3f tst =localToWorld(local);
-                                cloud.at(i).x=tst[0];
-                                cloud.at(i).y=-tst[1];
-                                cloud.at(i).z=tst[2];
-                                averageDistance+=cloud.at(i).z;
-                                averageError+=pow(cloud.at(i).z-(float)refenceDistance,2);
-//                                std::cout <<"\t readen "<< cloud.at(i).z << " has to be "<< refenceDistance<< " incremental error is " << averageError<<std::endl;
-                            }
-                            else{
-                                averageError+=pow(cloud.at(i).z-(float)refenceDistance,2);
-                                averageDistance+=cloud.at(i).z;
-//                                std::cout <<"\t readen "<< cloud.at(i).z << " has to be "<< refenceDistance<< " incremental error is " << averageError<<std::endl;
-                            }
-                        }
+                if(applyCorrection){
+                    //                  cloud.at(i).z*= multiplier.cell(localPoint.y,localPoint.x,localPoint.z)/hits.cell(localPoint.y,localPoint.x,localPoint.z);
+                    //                  cloud.at(i).z*= multiplier.cell(localPoint.y,localPoint.x,localPoint.z);
+                    localPoint.z*=multiplier.cell(localPoint.y,localPoint.x,localPoint.z);
+                    cv::Vec3f local(localPoint.x,localPoint.y,localPoint.z);
+                    cv::Vec3f tst =localToWorld(local);
+                    cloud.at(i).x=tst[0];
+                    cloud.at(i).y=-tst[1];
+                    cloud.at(i).z=tst[2];
+                    averageDistance+=cloud.at(i).z;
+                    averageError+=pow(cloud.at(i).z-(float)refenceDistance,2);
+                    //                                std::cout <<"\t readen "<< cloud.at(i).z << " has to be "<< refenceDistance<< " incremental error is " << averageError<<std::endl;
+                }
+                else{
+                    averageError+=pow(cloud.at(i).z-(float)refenceDistance,2);
+                    averageDistance+=cloud.at(i).z;
+                    //                                std::cout <<"\t readen "<< cloud.at(i).z << " has to be "<< refenceDistance<< " incremental error is " << averageError<<std::endl;
+                }
+            }
 
 
         }
@@ -310,14 +347,29 @@ void MySubscriber::calibratePointCloudWithMultipliers(){
 }
 
 void MySubscriber::computeNormals(){
-    pcl::NormalEstimationOMP<pcl::PointXYZRGB, pcl::Normal> ne;
-    //        pcl::PointCloud<pcl::PointXYZ>::Ptr p(cloud.makeShared());
-    ne.setInputCloud (cloud.makeShared());
-    pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZRGB> ());
-    ne.setSearchMethod (tree);
+//    pcl::NormalEstimationOMP<pcl::PointXYZRGB, pcl::Normal> ne;
+//    //        pcl::PointCloud<pcl::PointXYZ>::Ptr p(cloud.makeShared());
+//    ne.setInputCloud (cloud.makeShared());
+//    pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZRGB> ());
+//    ne.setSearchMethod (tree);
+//    cloud_normals.clear();
+//    ne.setRadiusSearch (100); //MALCOM
+//    ne.compute (cloud_normals);
+
+
+
+    pcl::PointCloud<pcl::Normal>::Ptr normals (new pcl::PointCloud<pcl::Normal>);
+
+    pcl::IntegralImageNormalEstimation<pcl::PointXYZRGB, pcl::Normal> ne;
+    ne.setNormalEstimationMethod (ne.AVERAGE_DEPTH_CHANGE);
+    ne.setMaxDepthChangeFactor(10.0f);
+    ne.setNormalSmoothingSize(10.0f);
+    cloud.width=640;
+    cloud.height=480;
+    cloud.points.resize(640*480);
+    ne.setInputCloud(cloud.makeShared());
     cloud_normals.clear();
-    ne.setRadiusSearch (300); //MALCOM
-    ne.compute (cloud_normals);
+    ne.compute(cloud_normals);
 }
 
 

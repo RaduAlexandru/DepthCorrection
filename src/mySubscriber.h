@@ -62,6 +62,7 @@ class MySubscriber{
         bool computeRefenceDistance;
         int refenceDistance;
 
+        void computeCenterSquareCloud();
         void computePointcloud();
         void voxelize();
         void computeCenterCloud();
