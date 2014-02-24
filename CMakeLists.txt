@@ -44,8 +44,6 @@ rosbuild_add_executable(standardViewer    src/main.cpp
                                         src/FancyQueue.cpp
                                         src/Plane.cpp
                                         src/shared/CalibrationMatrix.cpp
-                                        src/PCL_normEst.h
-                                        src/CGAL_normEst.h
                                         ${my_FORMS_HEADERS} ${my_HEADERS_MOC})
 
 
