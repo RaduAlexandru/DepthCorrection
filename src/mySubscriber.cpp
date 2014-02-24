@@ -3,7 +3,7 @@
 #include <pcl/features/integral_image_normal.h>
 
 MySubscriber::MySubscriber(FancyViewer* v) : shutdown_required(false),thread(&MySubscriber::spin, *this),
-    multiplier  (480,640,10000,2,128)
+    multiplier  (480,640,8000,2,4)
 {
 
     this->_viewer=v;
@@ -322,6 +322,7 @@ void MySubscriber::calibratePointCloudWithMultipliers(){
                     //                  cloud.at(i).z*= multiplier.cell(localPoint.y,localPoint.x,localPoint.z)/hits.cell(localPoint.y,localPoint.x,localPoint.z);
                     //                  cloud.at(i).z*= multiplier.cell(localPoint.y,localPoint.x,localPoint.z);
                     localPoint.z*=multiplier.cell(localPoint.y,localPoint.x,localPoint.z);
+//                  std::cout<< "MPLIER: "<<multiplier.cell(localPoint.y,localPoint.x,localPoint.z)<<std::endl;
                     cv::Vec3f local(localPoint.x,localPoint.y,localPoint.z);
                     cv::Vec3f tst =localToWorld(local);
                     cloud.at(i).x=tst[0];
@@ -347,29 +348,29 @@ void MySubscriber::calibratePointCloudWithMultipliers(){
 }
 
 void MySubscriber::computeNormals(){
-//    pcl::NormalEstimationOMP<pcl::PointXYZRGB, pcl::Normal> ne;
-//    //        pcl::PointCloud<pcl::PointXYZ>::Ptr p(cloud.makeShared());
-//    ne.setInputCloud (cloud.makeShared());
-//    pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZRGB> ());
-//    ne.setSearchMethod (tree);
-//    cloud_normals.clear();
-//    ne.setRadiusSearch (100); //MALCOM
-//    ne.compute (cloud_normals);
-
-
-
-    pcl::PointCloud<pcl::Normal>::Ptr normals (new pcl::PointCloud<pcl::Normal>);
-
-    pcl::IntegralImageNormalEstimation<pcl::PointXYZRGB, pcl::Normal> ne;
-    ne.setNormalEstimationMethod (ne.AVERAGE_DEPTH_CHANGE);
-    ne.setMaxDepthChangeFactor(10.0f);
-    ne.setNormalSmoothingSize(10.0f);
-    cloud.width=640;
-    cloud.height=480;
-    cloud.points.resize(640*480);
-    ne.setInputCloud(cloud.makeShared());
+    pcl::NormalEstimationOMP<pcl::PointXYZRGB, pcl::Normal> ne;
+    //        pcl::PointCloud<pcl::PointXYZ>::Ptr p(cloud.makeShared());
+    ne.setInputCloud (cloud.makeShared());
+    pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZRGB> ());
+    ne.setSearchMethod (tree);
     cloud_normals.clear();
-    ne.compute(cloud_normals);
+    ne.setRadiusSearch (100); //MALCOM
+    ne.compute (cloud_normals);
+
+
+
+//    pcl::PointCloud<pcl::Normal>::Ptr normals (new pcl::PointCloud<pcl::Normal>);
+
+//    pcl::IntegralImageNormalEstimation<pcl::PointXYZRGB, pcl::Normal> ne;
+//    ne.setNormalEstimationMethod (ne.AVERAGE_DEPTH_CHANGE);
+//    ne.setMaxDepthChangeFactor(10.0f);
+//    ne.setNormalSmoothingSize(10.0f);
+//    cloud.width=640;
+//    cloud.height=480;
+//    cloud.points.resize(640*480);
+//    ne.setInputCloud(cloud.makeShared());
+//    cloud_normals.clear();
+//    ne.compute(cloud_normals);
 }
 
 

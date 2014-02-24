@@ -13,9 +13,9 @@ set(CMAKE_BUILD_TYPE Debug)
 #SET(laser_FORMS src/laserWindow.ui)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake_modules/")
 
-set(CMAKE_C_FLAGS_RELEASE "-O3 -funroll-loops")
-set(CMAKE_CXX_FLAGS "-O3 -funroll-loops")
-set(CMAKE_BUILD_TYPE Release)
+set(CMAKE_C_FLAGS_RELEASE "-O3")
+set(CMAKE_CXX_FLAGS "-O3")
+set(CMAKE_BUILD_TYPE Debug)
 
 find_package(OpenMP)
 if (OPENMP_FOUND)
@@ -53,6 +53,7 @@ rosbuild_add_executable(offlineCalibration src/offline/offlineCalibration.cpp sr
 
 rosbuild_add_executable(rosToPGM src/batch/rosToPGM.cpp src/shared/CalibrationMatrix.h src/shared/CalibrationMatrix.cpp)
 rosbuild_add_executable(batchCalib src/batch/batchCalib.cpp src/shared/CalibrationMatrix.h src/shared/CalibrationMatrix.cpp)
+rosbuild_add_executable(downsampler src/downsampler/downsample.cpp src/shared/CalibrationMatrix.h src/shared/CalibrationMatrix.cpp)
 
 TARGET_LINK_LIBRARIES(standardViewer ${QGLVIEWER_LIBRARY_RELEASE} ${QT_LIBRARIES} )
 rosbuild_link_boost(standardViewer thread signals system)

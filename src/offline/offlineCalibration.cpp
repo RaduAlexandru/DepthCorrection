@@ -27,13 +27,8 @@ static int one (const struct dirent *unused)
 
 int main(int argc, char **argv)
 {
-    CalibrationMatrix  _multiplier  (480,640,5000,4,8);
-    _multiplier.deserialize("prova.txt");
+    CalibrationMatrix  multiplier  ("prova.txt");
 
-    std::cerr << "matrix loaded" << std::endl;
-    CalibrationMatrix* scaledMultiplier = _multiplier.downsample(4,4);
-    CalibrationMatrix& multiplier = *scaledMultiplier;
-    multiplier.dumpSensorImages();
     struct dirent **eps;
     int n;
     n = scandir ("./images/", &eps, pgmfilter, alphasort);

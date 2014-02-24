@@ -68,23 +68,77 @@ CalibrationMatrix::CalibrationMatrix(int rows, int cols, int maxDepth, int tileS
 
 }
 
-float CalibrationMatrix::cell(int r, int c, int d){/*
-    if(useKernel==0){
-        int h = _hits[d>>depthPow][r>>tilePow][c>>tilePow];
-        if (h){
-            return _data[d>>depthPow][r>>tilePow][c>>tilePow]/h;
-        }
-        return 1;
-        //            return _data[d>>depthPow][r>>tilePow][c>>tilePow];
-    }
-    */
 
-    //d/=10;
+void CalibrationMatrix::clear(){
+
+
+    for (int i=0; i<layers; i++){
+
+        for (int j=0; j< rows; j++){
+
+//            for (int k=0; k< cols; k++){
+//                delete(_data[i][j][k]);
+
+//            }
+            delete(_data[i][j]);
+        }
+        delete(_data[i]);
+    }
+    delete(_data);
+
+
+    for (int i=0; i<layers; i++){
+
+        for (int j=0; j< rows; j++){
+
+//            for (int k=0; k< cols; k++){
+//                delete(_staticData[i][j][k]);
+
+//            }
+            delete(_staticData[i][j]);
+        }
+        delete(_staticData[i]);
+    }
+    delete(_staticData);
+
+
+    for (int i=0; i<layers; i++){
+
+        for (int j=0; j< rows; j++){
+
+//            for (int k=0; k< cols; k++){
+//                delete(_hits[i][j][k]);
+
+//            }
+            delete(_hits[i][j]);
+        }
+        delete(_hits[i]);
+    }
+    delete(_hits);
+
+
+    for (int i=0; i<layers; i++){
+
+        for (int j=0; j< rows; j++){
+
+//            for (int k=0; k< cols; k++){
+//                delete(_covariance[i][j][k]);
+
+//            }
+            delete(_covariance[i][j]);
+        }
+        delete(_covariance[i]);
+    }
+    delete(_covariance);
+
+}
+
+float CalibrationMatrix::cell(int r, int c, int d){
     return _data[d>>depthPow][r>>tilePow][c>>tilePow]/_hits[d>>depthPow][r>>tilePow][c>>tilePow];
 }
 
 void CalibrationMatrix::cell(int r, int c, int d, float mply){
-    //d/=10;
+
     _data[d>>depthPow][r>>tilePow][c>>tilePow]+=mply;
     _covariance[d>>depthPow][r>>tilePow][c>>tilePow]+=mply*mply;
 
@@ -135,9 +189,9 @@ void CalibrationMatrix::serialize(char* filename){
     std::cout<<"opening handle...";
     std::ofstream writer(filename);
     std::cout<<"saving...";
-    std::cout<< layers << " "<<rows << " "<<cols<<std::endl;
+    std::cout<< layers << " "<<rows << " "<<cols<<" "<<depthRes<<std::endl;
     std::cout.flush();
-    writer<<layers<<" "<<rows<<" "<<cols<<" "<<std::endl;
+    writer<<layers<<" "<<rows<<" "<<cols<<" "<<" "<<depthRes<< std::endl;
 
     for (int i=0; i<this->layers; i++){
 
@@ -156,15 +210,106 @@ void CalibrationMatrix::serialize(char* filename){
 
 }
 //-----------------------------------------------------------------------------------LOAD FROM FILE
+
+CalibrationMatrix::CalibrationMatrix(char* filename){
+    std::ifstream myfile (filename);
+    int layers;
+    int rows;
+    int cols;
+    int depthres;
+
+    myfile >> layers >> rows >> cols >> depthres;
+    std::cout << "allocating from file "<<layers<<" " <<rows<<" "<<cols <<" "<<depthres << std::endl;
+    std::cout.flush();
+
+
+    this->maxDepth=depthres*layers;
+    this->tileSize=640/cols;
+    this->tilePow=log2(this->tileSize);
+    this->depthRes=depthres;
+    this->depthPow=log2(this->depthRes);
+    this->rows=rows;
+    this->cols=cols;
+    this->layers=layers;
+
+    _data = new float**[layers];
+    for (int i=0; i<layers; i++){
+        _data[i] = new float* [rows];
+        for (int j=0; j< rows; j++){
+            _data[i][j]=new float[cols];
+            for (int k=0; k< cols; k++){
+                _data[i][j][k]=1.0f;
+
+            }
+        }
+    }
+
+    _staticData = new float**[layers];
+    for (int i=0; i<layers; i++){
+        _staticData[i] = new float* [rows];
+        for (int j=0; j< rows; j++){
+            _staticData[i][j]=new float[cols];
+            for (int k=0; k< cols; k++){
+                _staticData[i][j][k]=1.0f;
+
+            }
+        }
+    }
+
+
+    _hits = new float**[layers];
+    for (int i=0; i<layers; i++){
+        _hits[i] = new float* [rows];
+        for (int j=0; j< rows; j++){
+            _hits[i][j]=new float[cols];
+            for (int k=0; k< cols; k++){
+                _hits[i][j][k]=1.0f;
+
+            }
+        }
+    }
+
+
+    _covariance = new float**[layers];
+    for (int i=0; i<layers; i++){
+        _covariance[i] = new float* [rows];
+        for (int j=0; j< rows; j++){
+            _covariance[i][j]=new float[cols];
+            for (int k=0; k< cols; k++){
+                _covariance[i][j][k]=1.0f;
+
+            }
+        }
+    }
+
+
+    for (int i=0; i<layers; i++){
+
+        for (int j=0; j< rows; j++){
+
+            for (int k=0; k< cols; k++){
+                myfile>>_data[i][j][k];
+                myfile>>_hits[i][j][k];
+                myfile>>_covariance[i][j][k];
+            }
+
+        }
+
+    }
+
+}
+
 void CalibrationMatrix::deserialize(char* filename){
     std::ifstream myfile (filename);
     int layers;
     int rows;
     int cols;
-
-    myfile >> layers >> rows >> cols;
+    int buff;
+    myfile >> layers >> rows >> cols >>buff;
     std::cout << " from file "<<layers<<" " <<rows<<" "<<cols << std::endl;
     std::cout.flush();
+
+
     if(layers!= this->layers && rows != this->rows && cols!=this->cols){
         std::cout << "file data incosistent"<<std::endl;
         std::cout << "should be "<<layers << " "<<rows <<" " << cols<<std::endl;
@@ -240,22 +385,17 @@ void CalibrationMatrix::dumpSensorImages(){
         cv::flip(errorImage,errorImage,0);
         double min;
         double max;
-
-        //errorImage.convertTo(error,CV_8UC1, 255.0/(max - min), -min * 255.0/(max - min));
-        //errorImage.convertTo(error,CV_8UC1, 255 / (max-min), -min);
         errorImage.convertTo(error,CV_8UC1);
         cv::minMaxIdx(error,&min,&max);
-        std::cout << "MIN: "<<min << "MAX: "<<max<<std::endl;
-        //cv::convertScaleAbs(errorImage, error, 255 / max);
+        std::cout <<"["<<i<<"]"<< " m: "<<min << " M: "<<max<<std::endl;
         cv::Mat dest;
         char filename[50];
         for(int colormap =0;colormap<1;colormap++){
             cv::applyColorMap(error,dest,colormap);
-            sprintf(filename,"COLORMAP[%d]layer_%d.pgm",colormap,i);
-            cv::resize(dest, dest, cv::Size(80,60), 0, 0, cv::INTER_CUBIC );
-            cv::resize(dest, dest, cv::Size(320,240), 0, 0, cv::INTER_CUBIC );
-            cv::imwrite(filename,dest);std::cout<< "saved "<<filename<<std::endl;
-            //std::cout<< "saved "<<filename<<std::endl;
+            sprintf(filename,"layer_%d.pgm",i);
+            //            cv::resize(dest, dest, cv::Size(80,60), 0, 0, cv::INTER_CUBIC );
+            //            cv::resize(dest, dest, cv::Size(320,240), 0, 0, cv::INTER_CUBIC );
+            cv::imwrite(filename,dest);
         }
 
     }
