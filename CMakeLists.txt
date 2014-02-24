@@ -50,7 +50,7 @@ rosbuild_add_executable(standardViewer    src/main.cpp
 rosbuild_add_executable(offlineCorrection src/offline/offlineCorrection.cpp src/shared/CalibrationMatrix.h src/shared/CalibrationMatrix.cpp)
 
 rosbuild_add_executable(rosToPGM src/batch/rosToPGM.cpp src/shared/CalibrationMatrix.h src/shared/CalibrationMatrix.cpp)
-rosbuild_add_executable(batchCalib src/batch/batchCalib.cpp src/shared/CalibrationMatrix.h src/shared/CalibrationMatrix.cpp)
+rosbuild_add_executable(batchCalib src/batch/batchCalib.cpp src/batch/batchCalib.h src/shared/CalibrationMatrix.h src/shared/CalibrationMatrix.cpp)
 rosbuild_add_executable(downsampler src/downsampler/downsample.cpp src/shared/CalibrationMatrix.h src/shared/CalibrationMatrix.cpp)
 
 TARGET_LINK_LIBRARIES(standardViewer ${QGLVIEWER_LIBRARY_RELEASE} ${QT_LIBRARIES} )
