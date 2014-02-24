@@ -134,6 +134,10 @@ void CalibrationMatrix::clear(){
 }
 
 float CalibrationMatrix::cell(int r, int c, int d){
+    if(d>this->layers*this->depthRes){
+        printf("[WARNING] requested depth out of calib range\n");
+        return 1;
+    }
     return _data[d>>depthPow][r>>tilePow][c>>tilePow]/_hits[d>>depthPow][r>>tilePow][c>>tilePow];
 }
 

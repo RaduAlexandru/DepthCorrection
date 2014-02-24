@@ -49,7 +49,7 @@ rosbuild_add_executable(standardViewer    src/main.cpp
                                         ${my_FORMS_HEADERS} ${my_HEADERS_MOC})
 
 
-rosbuild_add_executable(offlineCalibration src/offline/offlineCalibration.cpp src/shared/CalibrationMatrix.h src/shared/CalibrationMatrix.cpp)
+rosbuild_add_executable(offlineCorrection src/offline/offlineCorrection.cpp src/shared/CalibrationMatrix.h src/shared/CalibrationMatrix.cpp)
 
 rosbuild_add_executable(rosToPGM src/batch/rosToPGM.cpp src/shared/CalibrationMatrix.h src/shared/CalibrationMatrix.cpp)
 rosbuild_add_executable(batchCalib src/batch/batchCalib.cpp src/shared/CalibrationMatrix.h src/shared/CalibrationMatrix.cpp)
