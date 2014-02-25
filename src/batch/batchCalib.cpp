@@ -63,6 +63,7 @@ int tilesize=1;
 int depthres=1;
 int maxdepth=10000;
 int frameskip=1;
+int iocchi=0;
 string output="out.txt";
 
 int main (int argc, char **argv)
@@ -79,6 +80,7 @@ int main (int argc, char **argv)
         printf("--maxdepth -m int \n");
         printf("--output -o string \n");
         printf("--frameskip -f string \n");
+        printf("--iocchilog -l  \n");
         exit(1);
     }
     while (1)
@@ -93,13 +95,14 @@ int main (int argc, char **argv)
             {"depthres", required_argument,          0, 'd'},
             {"maxdepth", required_argument,          0, 'm'},
             {"output", required_argument,          0, 'o'},
+            {"iocchilog", no_argument,          0, 'l'},
             {"frameskip", required_argument,          0, 'f'},
             {0, 0, 0, 0}
         };
         /* getopt_long stores the option index here. */
         int option_index = 0;
 
-        c = getopt_long (argc, argv, "v:n:i:t:d:m:o:f:",long_options, &option_index);
+        c = getopt_long (argc, argv, "v:n:i:t:d:m:o:f:l",long_options, &option_index);
 
         /* Detect the end of the options. */
         if (c == -1)
@@ -149,6 +152,10 @@ int main (int argc, char **argv)
             frameskip=atoi(optarg);
             break;
 
+        case 'l':
+            printf ("-\tiocchilog `%s'\n", optarg);
+            iocchi=true;
+            break;
 
         default:
             abort ();
@@ -176,7 +183,7 @@ int main (int argc, char **argv)
             path.append(eps[cnt]->d_name);
             std::cout<< "["<<cnt<<"/"<<n << "] opening "<<path<<std::endl;
             cv::Mat image = cv::imread(path,CV_LOAD_IMAGE_UNCHANGED);
-            processImage(image, voxelLeaf, normalrange);
+            processImage(image, voxelLeaf, normalrange,iocchi);
             std::cout<< "done!"<<std::endl;
 
         }

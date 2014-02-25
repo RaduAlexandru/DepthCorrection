@@ -41,7 +41,7 @@ std::vector<bool> validPoints;
 CalibrationMatrix* multiplier;
 
 
-void computeCalibrationMatrix();
+void computeCalibrationMatrix(bool i);
 void computeErrorPerPoint();
 void computePointcloud();
 void processImage(cv::Mat& image);
@@ -56,7 +56,7 @@ pcl::PointXYZRGB  worldToImagePlane( pcl::PointXYZRGB p);
 
 cv::Mat _image;
 
-void processImage(cv::Mat& image, float v,float n){
+void processImage(cv::Mat& image, float v,float n,bool i){
     _image=image;
     computePointcloud();
     voxelize(v);
@@ -65,7 +65,7 @@ void processImage(cv::Mat& image, float v,float n){
     computeNormals();
     pointrejection(n);
     computeErrorPerPoint();
-    computeCalibrationMatrix();
+    computeCalibrationMatrix(i);
 
 }
 
@@ -142,7 +142,7 @@ void computePointcloud()
 
 }
 
-void computeCalibrationMatrix(){
+void computeCalibrationMatrix(bool i){
 
 
 
@@ -161,16 +161,22 @@ void computeCalibrationMatrix(){
 
                 if(point.z<projected_point.z)
                     multiplier->cell(localPoint.y,
-                                    localPoint.x,
-                                    localPoint.z,(measuredDistance+localPoint.z)/localPoint.z);
+                                     localPoint.x,
+                                     localPoint.z,(measuredDistance+localPoint.z)/localPoint.z);
                 if(point.z>projected_point.z)
                     multiplier->cell(localPoint.y,
-                                    localPoint.x,
-                                    localPoint.z,(localPoint.z-measuredDistance)/localPoint.z);
+                                     localPoint.x,
+                                     localPoint.z,(localPoint.z-measuredDistance)/localPoint.z);
 
                 multiplier->increment(localPoint.y,
-                                     localPoint.x,
-                                     localPoint.z);
+                                      localPoint.x,
+                                      localPoint.z);
+                if(i){
+                    std::fstream fs;
+                    fs.open ("iocchi.txt", std::fstream::in | std::fstream::out | std::fstream::app);
+                    fs << localPoint.x << " "<<localPoint.y<<" "<<localPoint.x;
+                    fs.close();
+                }
 
             }
 
@@ -214,7 +220,7 @@ void computerCenterPlane(){
         }
 
         pcl::compute3DCentroid<pcl::PointXYZRGB>(centerCloud,planeCentroid);
-//        std::cout << "centroid at "<< planeCentroid<<std::endl;
+        //        std::cout << "centroid at "<< planeCentroid<<std::endl;
     }
 }
 
