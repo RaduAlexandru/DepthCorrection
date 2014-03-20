@@ -27,6 +27,14 @@ public:
     void dumpSensorImages();
     void dumpCovariance();
     void syncToFloat();
+    void dumpMe();
+    float  growTop(int row, int col, int dep);
+    float  growBottom(int row, int col, int dep);
+    float  growLeft(int row, int col, int dep);
+    float  growRight(int row, int col, int dep);
+
+    void getStats();
+    float cellNN(int k,int r, int c, int d);
     float getFloat(int r, int c, int d);
     int maxDepth;
     int tileSize;

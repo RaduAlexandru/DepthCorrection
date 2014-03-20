@@ -76,10 +76,10 @@ void CalibrationMatrix::clear(){
 
         for (int j=0; j< rows; j++){
 
-//            for (int k=0; k< cols; k++){
-//                delete(_data[i][j][k]);
+            //            for (int k=0; k< cols; k++){
+            //                delete(_data[i][j][k]);
 
-//            }
+            //            }
             delete(_data[i][j]);
         }
         delete(_data[i]);
@@ -91,10 +91,10 @@ void CalibrationMatrix::clear(){
 
         for (int j=0; j< rows; j++){
 
-//            for (int k=0; k< cols; k++){
-//                delete(_staticData[i][j][k]);
+            //            for (int k=0; k< cols; k++){
+            //                delete(_staticData[i][j][k]);
 
-//            }
+            //            }
             delete(_staticData[i][j]);
         }
         delete(_staticData[i]);
@@ -106,10 +106,10 @@ void CalibrationMatrix::clear(){
 
         for (int j=0; j< rows; j++){
 
-//            for (int k=0; k< cols; k++){
-//                delete(_hits[i][j][k]);
+            //            for (int k=0; k< cols; k++){
+            //                delete(_hits[i][j][k]);
 
-//            }
+            //            }
             delete(_hits[i][j]);
         }
         delete(_hits[i]);
@@ -121,10 +121,10 @@ void CalibrationMatrix::clear(){
 
         for (int j=0; j< rows; j++){
 
-//            for (int k=0; k< cols; k++){
-//                delete(_covariance[i][j][k]);
+            //            for (int k=0; k< cols; k++){
+            //                delete(_covariance[i][j][k]);
 
-//            }
+            //            }
             delete(_covariance[i][j]);
         }
         delete(_covariance[i]);
@@ -135,7 +135,7 @@ void CalibrationMatrix::clear(){
 
 float CalibrationMatrix::cell(int r, int c, int d){
     if(d>this->layers*this->depthRes){
-        printf("[WARNING] requested depth out of calib range\n");
+    //printf("[WARNING] requested depth out of calib range\n");
         return 1;
     }
     return _data[d>>depthPow][r>>tilePow][c>>tilePow]/_hits[d>>depthPow][r>>tilePow][c>>tilePow];
@@ -171,6 +171,76 @@ void CalibrationMatrix::increment(int r, int c, int d){
     _hits[d>>depthPow][r>>tilePow][c>>tilePow]+=1.0f;
 
 }
+
+void CalibrationMatrix::getStats(){
+    int unos=0;
+    for (int i=0; i<layers; i++){
+
+        for (int j=0; j< rows; j++){
+
+            for (int k=0; k< cols; k++){
+
+                if(_hits[i][j][k]==1){
+                    unos++;
+                    //                    if(this->cellNN(1,j,k,i)!=1)
+                    //                        std::cout << std::endl<<"data was 1, now is "<<this->cellNN(1,j,k,i)<<std::endl;
+                    //                    else
+                    //                        std::cout<<"miss.";
+
+                }
+
+            }
+        }
+    }
+    std::cout << "############ missing data on "<<unos<<"/"<<layers*rows*cols<<" " <<(float)((float)unos/((float)(layers*rows*cols))) <<std::endl;
+}
+
+float  CalibrationMatrix::growLeft(int row, int col, int dep){
+    if(_hits[dep][row][col]==1.0f && row<(rows-1))
+    {
+        growLeft(++row,col,dep);
+    }
+    return _data[dep][row][col]/_hits[dep][row][col];
+}
+
+float  CalibrationMatrix::growRight(int row, int col, int dep){
+    if(_hits[dep][row][col]==1.0f && row>0)
+    {
+        growLeft(--row,col,dep);
+    }
+    return _data[dep][row][col]/_hits[dep][row][col];
+}
+
+
+float  CalibrationMatrix::growTop(int row, int col, int dep){
+    if(_hits[dep][row][col]==1.0f && col>0)
+    {
+        growLeft(row,--col,dep);
+    }
+    return _data[dep][row][col]/_hits[dep][row][col];
+}
+
+
+float  CalibrationMatrix::growBottom(int row, int col, int dep){
+    if(_hits[dep][row][col]==1.0f && col<(cols-1))
+    {
+        growLeft(row,++col,dep);
+    }
+    return _data[dep][row][col]/_hits[dep][row][col];
+}
+
+float CalibrationMatrix::cellNN(int k,int row, int col, int dep){
+    float v=0;
+    v+=growLeft(row,col,dep);
+    v+=growRight(row,col,dep);
+    v+=growTop(row,col,dep);
+    v+=growBottom(row,col,dep);
+
+    return v/4;
+
+}
+
+
 
 void CalibrationMatrix::worldToMap(int& ir, int& ic, int& id, int r, int c, int d){
     ir=r>>tilePow;
@@ -380,7 +450,14 @@ void CalibrationMatrix::dumpSensorImages(){
                 p.y=j;
                 p.x=k;
                 float v= _data[i][j][k]/_hits[i][j][k];
+                if(_hits[i][j][k]==1)v=0;
+                //                if(v==1){
+                //                    v=this->cellNN(1,j,k,i);
 
+                ////                    if(v!=1){
+                ////                        v=0;
+                ////                    }
+                //                }
 
                 errorImage.at<float>(p)=(v-1)*3000+127;
             }
@@ -406,6 +483,60 @@ void CalibrationMatrix::dumpSensorImages(){
 }
 
 
+void CalibrationMatrix::dumpMe(){
+    //    std::cout<<"DDDDDDDUUUUUUUUUUMMMMMMMMPPPPPPPPPP";
+
+    //    std::cout<<"saving...";
+    //    std::cout<< layers << " "<<rows << " "<<cols<<" "<<depthRes<<std::endl;
+    //    std::cout.flush();
+
+
+    //    for (int i=0; i<this->layers; i++){
+    //        char buff[100];
+    //        sprintf(buff,"layer_%d.txt",i);
+    //        std::ofstream writer(buff);
+    //        for (int j=0; j< this->rows; j++){
+
+    //            for (int k=0; k< this->cols; k++){
+    //                //writer<<_data[i][j][k]<< " " << _hits[i][j][k]<<" " << sqrt((_covariance[i][j][k]/_hits[i][j][k]) -_data[i][j][k])<<" ";
+    //                writer<<j<<" "<<k<<" " <<_data[i][j][k]/_hits[i][j][k]<< std::endl;
+    //            }
+
+    //        }
+    //        writer.close();
+    //    }
+
+    //    std::cout<<"done"<<std::endl;
+    std::ifstream myfile ("layer_32_4096_ANN.txt");
+    float m;
+    cv::Mat ANN(480,640,CV_32FC1);
+    cv::Point p;
+    for (int i=0; i<480; i++){
+        for (int j=0; j<640; j++){
+            int buco;
+            myfile>>buco;myfile>>buco;
+            myfile>>m;
+            p.x=j;
+            p.y=i;
+            ANN.at<float>(p)=(m-1)*3000+127;
+        }
+    }
+    myfile.close();
+    cv::flip(ANN,ANN,0);
+    double min;
+    double max;
+    ANN.convertTo(ANN,CV_8UC1);
+    cv::minMaxIdx(ANN,&min,&max);
+    cv::Mat dest;
+    for(int colormap =0;colormap<1;colormap++){
+        cv::applyColorMap(ANN,dest,colormap);
+        cv::imwrite("ANN_OUT.PGM",dest);
+    }
+}
+
+
+
+
 void CalibrationMatrix::dumpCovariance(){
     for (int i=0; i<layers; i++){
         cv::Mat errorImage(rows,cols,CV_32FC1);
@@ -429,17 +560,18 @@ void CalibrationMatrix::dumpCovariance(){
 
         //errorImage.convertTo(error,CV_8UC1, 255.0/(max - min), -min * 255.0/(max - min));
         cv::minMaxIdx(errorImage,&min,&max);
-        std::cout << "MIN: "<<min << " MAX: "<<max<<std::endl;
-        errorImage.convertTo(error,CV_8UC1,255/max);
-
+        std::cout << "m: "<<min << " M: "<<max<<std::endl;
+        //        errorImage.convertTo(error,CV_8UC1,255/max);
+        errorImage.convertTo(error,CV_8UC1, 255.0/(max - min), -min * 255.0/(max - min));
         //cv::convertScaleAbs(errorImage, error, 255 / max);
         cv::Mat dest;
         char filename[50];
         for(int colormap =0;colormap<1;colormap++){
             cv::applyColorMap(error,dest,colormap);
-            sprintf(filename,"COLORMAP[%d]layer_%d.pgm",colormap,i);
-            cv::imwrite(filename,dest);std::cout<< "saved "<<filename<<std::endl;
-            //std::cout<< "saved "<<filename<<std::endl;
+            sprintf(filename,"covariances_%d.pgm",i);
+            cv::imwrite(filename,dest);
+
+
         }
 
     }

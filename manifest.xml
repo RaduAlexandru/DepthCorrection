@@ -1,3 +1,4 @@
+
 <package>
   <description brief="xtionCalib">
 
@@ -8,6 +9,7 @@
   <license>BSD</license>
   <review status="unreviewed" notes=""/>
   <url>http://ros.org/wiki/standardViewer</url>
+  <depend package="pcl_conversions"/>
   <depend package="std_msgs"/>
   <depend package="rospy"/>
   <depend package="roscpp"/>
@@ -16,7 +18,8 @@
   <depend package="cv_bridge"/>
   <depend package="image_transport"/>
   <depend package="ecl_threads"/>
-  <depend package="pcl"/>
   <depend package="pcl_ros"/>
+  <depend package="pcl"/>
+
 </package>
 
