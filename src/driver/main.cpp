@@ -12,6 +12,26 @@
 #include <boost/signal.hpp>
 #include <boost/bind.hpp>
 #include "driver.h"
+#include <opencv2/opencv.hpp>
+#include <image_transport/image_transport.h>
+#include <cv_bridge/cv_bridge.h>
+
+cv_bridge::CvImagePtr cvImageFromROS;
+cv_bridge::CvImage out_msg;
+image_transport::ImageTransport* it;
+image_transport::Publisher pub;
+cv::Mat image;
+
+void callback(const sensor_msgs::ImageConstPtr &imgPtr){
+    cvImageFromROS =cv_bridge::toCvCopy(imgPtr);
+
+    cvImageFromROS->image.copyTo(image);
+    out_msg.header   = imgPtr->header;
+    out_msg.encoding = "mono16";
+    out_msg.image    = image;
+    pub.publish(out_msg.toImageMsg());
+}
+
 
 
 int main(int argc, char **argv)
@@ -21,10 +41,16 @@ int main(int argc, char **argv)
     ros::NodeHandle n("xtionDriver");
     std::cout<<"ROSNODE INIT"<<std::endl;
 
-    xtionDriver d(n);
+    //xtionDriver d(n);
+
+    it= new image_transport::ImageTransport(n);
+    pub = it->advertise("/camera/malcom", 10);
 
     std::cout<<"TOPIC SUBSCRIBED INIT"<<std::endl;
-    ros::Subscriber s = n.subscribe("/camera/depth/image_raw", 50, &xtionDriver::callback, &d);
+    //ros::Subscriber s = n.subscribe("/camera/depth/image_raw", 50, &xtionDriver::callback, &d);
+    ros::Subscriber s = n.subscribe("/camera/depth/image_raw", 50, &callback);
     ros::spin();
     return 1;
 }
+
+
