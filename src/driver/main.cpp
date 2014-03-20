@@ -19,6 +19,7 @@
 cv_bridge::CvImagePtr cvImageFromROS;
 cv_bridge::CvImage out_msg;
 image_transport::ImageTransport* it;
+image_transport::ImageTransport* test;
 image_transport::Publisher pub;
 cv::Mat image;
 
@@ -44,11 +45,17 @@ int main(int argc, char **argv)
     //xtionDriver d(n);
 
     it= new image_transport::ImageTransport(n);
+    test= new image_transport::ImageTransport(n);
+
+
+
+
     pub = it->advertise("/camera/malcom", 10);
 
     std::cout<<"TOPIC SUBSCRIBED INIT"<<std::endl;
     //ros::Subscriber s = n.subscribe("/camera/depth/image_raw", 50, &xtionDriver::callback, &d);
-    ros::Subscriber s = n.subscribe("/camera/depth/image_raw", 50, &callback);
+    image_transport::Subscriber sub = test->subscribe("/camera/depth/image_raw", 1, &callback);
+    //ros::Subscriber s = n.subscribe("/camera/depth/image_raw", 50, &callback);
     ros::spin();
     return 1;
 }
