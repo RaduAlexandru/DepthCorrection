@@ -55,14 +55,24 @@ int main(int argc, char **argv)
     FancyWindow w;
     FancyQueue queue;
     MySubscriber mySub(w.viewer);
-    mySub.queue=&queue;
+    mySub.m_queue=&queue;
     w.viewer->queue=&queue;
     w.sub=&mySub;
 
 
+    message_filters::Subscriber<sensor_msgs::CameraInfo> info_sub(n, "/kinect2/qhd/camera_info", 3);
+    message_filters::Subscriber<sensor_msgs::PointCloud2> cloud_sub(n, "/kinect2/qhd/points", 3);
 
-    std::cout<<"TOPIC SUBSCRIBED INIT"<<std::endl;
-    ros::Subscriber s = n.subscribe("/camera/depth/image_raw", 5, &MySubscriber::callback, &mySub);
+   typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::CameraInfo, sensor_msgs::PointCloud2> AsyncPolicy;
+   message_filters::Synchronizer<AsyncPolicy> sync(AsyncPolicy(10), info_sub, cloud_sub);
+   sync.registerCallback(boost::bind(&MySubscriber::callback ,&mySub, _1, _2));
+
+
+
+    //std::cout<<"TOPIC SUBSCRIBED INIT "<<std::endl;
+    //std::string topic_name= "/kinect2/qhd/image_depth_rect";
+
+    //ros::Subscriber s = n.subscribe(topic_name, 5, &MySubscriber::callback, &mySub);
     w.show();
     return qapp.exec();
 }

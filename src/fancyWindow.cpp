@@ -19,19 +19,19 @@ FancyWindow::~FancyWindow()
 
 void FancyWindow::on_toggleError_clicked(bool checked)
 {
-    if(sub->applyCorrection) sub->applyCorrection=false;
-    else sub->applyCorrection=true;
-    std::cout << "apply correction "<< sub->applyCorrection<<std::endl;
-    this->ui->correcting->setChecked(sub->applyCorrection);
+    if(sub->m_applyCorrection) sub->m_applyCorrection=false;
+    else sub->m_applyCorrection=true;
+    std::cout << "apply correction is now "<< sub->m_applyCorrection<<std::endl;
+    this->ui->correcting->setChecked(sub->m_applyCorrection);
 }
 
 
 void FancyWindow::on_recordingData_clicked()
 {
-    if(sub->recordData) sub->recordData=false;
-    else sub->recordData=true;
-    std::cout << "recording data "<< sub->recordData<<std::endl;
-    this->ui->recording->setChecked(sub->recordData);
+    if(sub->m_recordData) sub->m_recordData=false;
+    else sub->m_recordData=true;
+    std::cout << "recording data is now"<< sub->m_recordData<<std::endl;
+    this->ui->recording->setChecked(sub->m_recordData);
 }
 
 void FancyWindow::on_rejecter_clicked()
@@ -44,36 +44,36 @@ void FancyWindow::on_rejecter_clicked()
 void FancyWindow::on_saveData_clicked()
 {
     std::cout << "serialization called"<<std::endl;
-    this->sub->multiplier.serialize("prova.txt");
+    this->sub->m_multiplier->serialize("prova.txt");
 }
 
 void FancyWindow::on_loadCalibData_clicked()
 {
     std::cout << "deserialization called"<<std::endl;
-    this->sub->multiplier.deserialize("prova.txt");
+    this->sub->m_multiplier->deserialize("prova.txt");
 }
 
 void FancyWindow::on_saveSensorImage_clicked()
 {
     std::cout << "dumping images"<<std::endl;
-    this->sub->multiplier.dumpSensorImages();
+    this->sub->m_multiplier->dumpSensorImages();
     //this->sub->multiplier.dumpCovariance();
 }
 
-void FancyWindow::on_voxelLeaf_valueChanged(int arg1)
+void FancyWindow::on_voxelLeaf_valueChanged(double arg1)
 {
-    this->sub->voxelLeaf=(float)arg1;
+    this->sub->m_voxelLeaf=(float)arg1;
 }
 
 void FancyWindow::on_normalRejection_valueChanged(double arg1)
 {
-    this->sub->normalRejection=(float)arg1;
+    this->sub->m_normalRejection=(float)arg1;
 }
 
 void FancyWindow::on_planeModelInliers_clicked()
 {
-    if(this->sub->planeModelInliers) this->sub->planeModelInliers=false;
-    else this->sub->planeModelInliers=true;
+    if(this->sub->m_show_planeModelInliers) this->sub->m_show_planeModelInliers=false;
+    else this->sub->m_show_planeModelInliers=true;
 }
 
 void FancyWindow::on_pointSize_valueChanged(int arg1)
@@ -101,11 +101,11 @@ void FancyWindow::on_b_valueChanged(int arg1)
 
 void FancyWindow::on_referenceMM_valueChanged(int arg1)
 {
-    this->sub->refenceDistance=arg1;
+    this->sub->m_refenceDistance=arg1;
 }
 
 void FancyWindow::on_referenceError_clicked()
 {
-    if(this->sub->computeRefenceDistance) this->sub->computeRefenceDistance=false;
-    else this->sub->computeRefenceDistance=true;
+    if(this->sub->m_computeRefenceDistance) this->sub->m_computeRefenceDistance=false;
+    else this->sub->m_computeRefenceDistance=true;
 }

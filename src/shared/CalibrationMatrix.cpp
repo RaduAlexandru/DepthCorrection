@@ -143,6 +143,13 @@ float CalibrationMatrix::cell(int r, int c, int d){
 
 void CalibrationMatrix::cell(int r, int c, int d, float mply){
 
+    //std::cout << "CalibrationMatrix::cell raw " << r  << " " << c << " " << d << std::endl;
+
+    int z=d>>depthPow;
+    int y=r>>tilePow;
+    int x=c>>tilePow;
+
+    std::cout << "CalibrationMatrix::cell data << " << y << " " << x << " " << z << std::endl;
     _data[d>>depthPow][r>>tilePow][c>>tilePow]+=mply;
     _covariance[d>>depthPow][r>>tilePow][c>>tilePow]+=mply*mply;
 
@@ -167,6 +174,8 @@ float CalibrationMatrix::getFloat(int r, int c, int d){
 }
 
 void CalibrationMatrix::increment(int r, int c, int d){
+
+     //std::cout << "CalibrationMatrix::increment" << std::endl;
 
     _hits[d>>depthPow][r>>tilePow][c>>tilePow]+=1.0f;
 
@@ -298,7 +307,7 @@ CalibrationMatrix::CalibrationMatrix(char* filename){
 
 
     this->maxDepth=depthres*layers;
-    this->tileSize=640/cols;
+    this->tileSize=960/cols;
     this->tilePow=log2(this->tileSize);
     this->depthRes=depthres;
     this->depthPow=log2(this->depthRes);
@@ -509,10 +518,10 @@ void CalibrationMatrix::dumpMe(){
     //    std::cout<<"done"<<std::endl;
     std::ifstream myfile ("layer_32_4096_ANN.txt");
     float m;
-    cv::Mat ANN(480,640,CV_32FC1);
+    cv::Mat ANN(540,960,CV_32FC1);
     cv::Point p;
-    for (int i=0; i<480; i++){
-        for (int j=0; j<640; j++){
+    for (int i=0; i<540; i++){
+        for (int j=0; j<960; j++){
             int buco;
             myfile>>buco;myfile>>buco;
             myfile>>m;

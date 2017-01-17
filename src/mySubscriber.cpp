@@ -2,62 +2,158 @@
 #include <opencv2/opencv.hpp>
 #include <pcl/features/integral_image_normal.h>
 
-MySubscriber::MySubscriber(FancyViewer* v) : shutdown_required(false),thread(&MySubscriber::spin, *this),
-    multiplier  (480,640,8000,2,4)
+
+#define SQUARE_SIZE_X 40
+#define SQUARE_SIZE_Y 40
+#define PLANCE_DISTANCE_THRESHOLD 0.001
+
+//#define F_X 532.7886771534169
+//#define F_Y 532.5948115815787
+//#define C_X 468.3525646507127
+//#define C_Y 265.31061972652395
+
+MySubscriber::MySubscriber(FancyViewer* v) :
+    m_shutdown_required(false),
+    m_thread(&MySubscriber::spin, *this),
+    m_processing_counter(0),
+    m_first_cloud(true)
 {
 
-    this->_viewer=v;
-    applyCorrection=false;
-    recordData=false;
-    voxelLeaf=40;
-    normalRejection=0.7f;
-    planeModelInliers=true;
-    computeRefenceDistance=false;
-    refenceDistance=0;
+    m_viewer=v;
+    m_applyCorrection=false;
+    m_recordData=false;
+    m_voxelLeaf=10;
+    m_normalRejection=0.7f;
+    m_show_planeModelInliers=true;
+    m_computeRefenceDistance=false;
+    m_refenceDistance=0;
 }
 
 MySubscriber::~MySubscriber(){
-    shutdown_required = true;
-    thread.join();
+    m_shutdown_required = true;
+    m_thread.join();
 }
 
-void MySubscriber::callback(const sensor_msgs::ImageConstPtr &imgPtr){
-
-    _image = cv_bridge::toCvCopy(imgPtr, "mono16");
-    if(!this->queue->status())
-    {
-        this->queue->lock();
 
 
-        computePointcloud();
-        voxelize();
-        computeCenterSquareCloud();
-        //computeCenterCloud();
-        computerCenterPlane();
-        computeNormals();
-        pointrejection();
-        computeErrorPerPoint();
-        computeCalibrationMatrix();
-        calibratePointCloudWithMultipliers();
+void MySubscriber::callback(const sensor_msgs::CameraInfoConstPtr& cam_info_msg, const sensor_msgs::PointCloud2ConstPtr& cloud_msg){
 
-        QueuePayload payload;
-        payload.cloud=this->cloud;
-        payload.planeCentroid=this->planeCentroid;
-        payload.planeCoefficient=this->planeCoefficient;
-        payload.errorCloud=this->errorCloud;
-        payload.correctCloud=this->correctCloud;
-        payload.normals= this->cloud_normals;
-        payload.validPoints=this->validPoints;
-        this->queue->data=payload;
-        this->_viewer->data=payload;
-        this->queue->unlock();
-    }
+
+    std::cout << "processing " << m_processing_counter << std::endl;
+    m_processing_counter++;
+
+
+    if(!this->m_queue->status())
+        {
+            this->m_queue->lock();
+
+
+            //when we receive the first point cloud we will not the size to make out multiplier
+            if (m_first_cloud){
+                m_multiplier = new CalibrationMatrix (cloud_msg->height,cloud_msg->width,12,1,1);
+                m_first_cloud=false;
+            }
+
+
+            //read projection matrix
+            m_fx= cam_info_msg->P[0];
+            m_fy= cam_info_msg->P[5];
+            m_cx= cam_info_msg->P[2];
+            m_cy= cam_info_msg->P[6];
+
+
+            //std::cout << "callback, started processing" << std::endl;
+
+
+            computePointcloud(cloud_msg);
+//            voxelize();
+            computeCenterSquareCloud();
+            computerCenterPlane();
+            computeNormals();
+            pointrejection();
+            computeErrorPerPoint();
+            computeCalibrationMatrix();
+            calibratePointCloudWithMultipliers();
+
+
+
+
+
+            std::cout << "plane centroid is " <<   m_planeCentroid(0);
+
+
+            QueuePayload payload;
+            payload.cloud=this->m_cloud;
+            payload.planeCentroid=this->m_planeCentroid;
+            payload.planeCoefficient=this->m_planeCoefficient;
+            payload.errorCloud=this->m_errorCloud;
+            payload.correctCloud=this->m_correctCloud;
+            payload.normals= this->m_cloud_normals;
+            payload.validPoints=this->m_validPoints;
+            this->m_queue->data=payload;
+            this->m_viewer->data=payload;
+            this->m_queue->unlock();
+        }
+
+
+
+
+
+
+//    //dirty workaround to the encoding issue
+//	if (imgPtr->encoding == "16UC1"){
+//                        sensor_msgs::Image img;
+//                        img.header = imgPtr->header;
+//                        img.height = imgPtr->height;
+//                        img.width = imgPtr->width;
+//                        img.is_bigendian = imgPtr->is_bigendian;
+//                        img.step = imgPtr->step;
+//                        img.data = imgPtr->data;
+//                        img.encoding = "mono16";
+
+//                        _image = cv_bridge::toCvCopy(img, "mono16");
+//                    }
+
+
+
+
+//    //_image = cv_bridge::toCvCopy(imgPtr, "mono8");
+//    if(!this->queue->status())
+//    {
+//        this->queue->lock();
+
+//        //std::cout << "callback, started processing" << std::endl;
+
+
+//        computePointcloud();
+//        voxelize();
+//        computeCenterSquareCloud();
+//        //computeCenterCloud();
+//        computerCenterPlane();
+//        computeNormals();
+//        pointrejection();
+//        computeErrorPerPoint();
+//        computeCalibrationMatrix();
+//        calibratePointCloudWithMultipliers();
+
+//        QueuePayload payload;
+//        payload.cloud=this->cloud;
+//        payload.planeCentroid=this->planeCentroid;
+//        payload.planeCoefficient=this->planeCoefficient;
+//        payload.errorCloud=this->errorCloud;
+//        payload.correctCloud=this->correctCloud;
+//        payload.normals= this->cloud_normals;
+//        payload.validPoints=this->validPoints;
+//        this->queue->data=payload;
+//        this->_viewer->data=payload;
+//        this->queue->unlock();
+//    }
 }
 
 void MySubscriber::spin() {
     ros::Rate loop(10);
     sleep(1);
-    while ( ros::ok() && !shutdown_required ) {
+    while ( ros::ok() && !m_shutdown_required ) {
         ros::spinOnce();
         loop.sleep();
     }
@@ -66,108 +162,90 @@ void MySubscriber::spin() {
 //VOXELIZE COMPUTATION
 void MySubscriber::voxelize(){
     pcl::VoxelGrid<pcl::PointXYZRGB> sor;
-    sor.setInputCloud (this->cloud.makeShared());
-    float _voxelLeaf =voxelLeaf;
+    sor.setInputCloud (m_cloud.makeShared());
+    float _voxelLeaf =m_voxelLeaf;
     sor.setLeafSize ((float)_voxelLeaf, (float)_voxelLeaf, (float)_voxelLeaf);
-    sor.filter (cloud);
+    sor.filter (m_cloud);
 }
 
 
 //POINTCLOUD COMPUTATION
-void MySubscriber::computePointcloud()
+void MySubscriber::computePointcloud(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
 {
-    cloud.clear();
-    int cols=this->_image->image.cols;
-    int rows=this->_image->image.rows;
-    cv::Point p;
-    float v;
-    pcl::PointXYZRGB pxyz;
-    for (int i=0;i<cols;i++){
-        for(int j=0;j<rows;j++){
+    m_cloud.clear();
+    pcl::PCLPointCloud2::Ptr temp_cloud (new pcl::PCLPointCloud2 ());
+    pcl_conversions::toPCL(*cloud_msg,*temp_cloud);
+    pcl::fromPCLPointCloud2(*temp_cloud,m_cloud);
 
-
-            p.x=i;
-            p.y=j;
-            if(i==320 && j==240){
-                //                std::cout<<"center distance "<<((float)this->_image->image.at<ushort>(p))<<" ";
-            }
-            v=((float)this->_image->image.at<ushort>(p));
-
-            if(v!=0){
-                cv::Vec3f localPoint(p.x,p.y,(float)v);
-                cv::Vec3f worldPoint=localToWorld(localPoint);
-
-                pxyz.x=worldPoint[0];
-                pxyz.y=worldPoint[1];
-                pxyz.z=worldPoint[2];
-
-                uint8_t r = 0, g = 0, b = 255;    // Example: Red color
-                uint32_t rgb = ((uint32_t)r << 16 | (uint32_t)g << 8 | (uint32_t)b);
-                pxyz.rgb = *reinterpret_cast<float*>(&rgb);
-                cloud.push_back(pxyz);
-            }
-            else{
-                cv::Vec3f localPoint(p.x,p.y,(float)v);
-                cv::Vec3f worldPoint=localToWorld(localPoint);
-
-                pxyz.x=worldPoint[0];
-                pxyz.y=worldPoint[1];
-                pxyz.z=NAN;
-
-                uint8_t r = 0, g = 0, b = 255;    // Example: Red color
-                uint32_t rgb = ((uint32_t)r << 16 | (uint32_t)g << 8 | (uint32_t)b);
-                pxyz.rgb = *reinterpret_cast<float*>(&rgb);
-                cloud.push_back(pxyz);
-            }
-        }
+    //make it bigger
+    for(int i=0; i< m_cloud.size();i++){
+//                cloud.points[i].x=cloud.points[i].x*100;
+//                cloud.points[i].y=cloud.points[i].y*100;
+//                cloud.points[i].z=cloud.points[i].z*100;
+//        if (!isnan(cloud.points[i].z) )
+//            std::cout << " " << cloud.points[i].x << " " << cloud.points[i].y << " " << cloud.points[i].z << std::endl;
     }
+
+    //std::cout << "cloud height is " << cloud.height << std::endl;
+    //std::cout << "cloud size is " << cloud.size() << std::endl;
 
 
 }
 void MySubscriber::computeCenterSquareCloud(){
-    this->centerCloud.clear();
-    pcl::PointXYZRGB pix;
-    for(unsigned int i=0; i<cloud.size();i++){
-        pix=cloud.at(i);
+    m_centerCloud.clear();
+    pcl::PointXYZRGB pix; 
+
+
+    int center_x= m_cloud.width/2;
+    int center_y= m_cloud.height/2;
+    
+    int border_x_low= center_x - SQUARE_SIZE_X;
+    int border_x_high = center_x + SQUARE_SIZE_X;
+    int border_y_low = center_y - SQUARE_SIZE_Y;
+    int border_y_high = center_y + SQUARE_SIZE_Y;
+
+    for(unsigned int i=0; i<m_cloud.size();i++){
+        pix=m_cloud.at(i);
         pcl::PointXYZRGB local = worldToImagePlane(pix);
-        if(local.x>240 && local.x<400 && local.y>140 && local.y<340){
-            this->centerCloud.push_back(pix);
+        if(local.x> border_x_low  && local.x< border_x_high && local.y> border_y_low && local.y< border_y_high){
+            m_centerCloud.push_back(pix);
             pix.z=0;
             uint8_t r,g,b;
-            if(planeModelInliers){
+            if(m_show_planeModelInliers){
                 r= 0, g = 255, b = 0;
+                uint32_t rgb = ((uint32_t)r << 16 | (uint32_t)g << 8 | (uint32_t)b);
+                m_cloud.at(i).rgb = *reinterpret_cast<float*>(&rgb);
             }
-            if(!planeModelInliers){
-                r= 0, g = 0, b = 255;
-            }
+//            if(!m_show_planeModelInliers){
+//                r= 0, g = 0, b = 255;
+//            }
 
-            uint32_t rgb = ((uint32_t)r << 16 | (uint32_t)g << 8 | (uint32_t)b);
-            cloud.at(i).rgb = *reinterpret_cast<float*>(&rgb);
+
         }
     }
 }
 
 
 void MySubscriber::computeCenterCloud(){
-    this->centerCloud.clear();
+    m_centerCloud.clear();
     pcl::PointXYZRGB pix;
-    _validNormalRange=300.0f;
-    for(unsigned int i=0; i<cloud.size();i++){
-        pix=cloud.at(i);
+    m_validNormalRange=300.0f;
+    for(unsigned int i=0; i<m_cloud.size();i++){
+        pix=m_cloud.at(i);
 
-        if(sqrt(pix.x*pix.x+pix.y*pix.y)<=_validNormalRange){
-            this->centerCloud.push_back(pix);
+        if(sqrt(pix.x*pix.x+pix.y*pix.y)<=m_validNormalRange){
+            m_centerCloud.push_back(pix);
             pix.z=0;
             uint8_t r,g,b;
-            if(planeModelInliers){
+            if(m_show_planeModelInliers){
                 r= 0, g = 255, b = 0;
             }
-            if(!planeModelInliers){
+            if(!m_show_planeModelInliers){
                 r= 0, g = 0, b = 255;
             }
 
             uint32_t rgb = ((uint32_t)r << 16 | (uint32_t)g << 8 | (uint32_t)b);
-            cloud.at(i).rgb = *reinterpret_cast<float*>(&rgb);
+            m_cloud.at(i).rgb = *reinterpret_cast<float*>(&rgb);
         }
     }
 
@@ -175,7 +253,7 @@ void MySubscriber::computeCenterCloud(){
 
 
 void MySubscriber::computerCenterPlane(){
-    if(this->centerCloud.size()>10){
+    if(m_centerCloud.size()>10){
         pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
         pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
         // Create the segmentation object
@@ -185,46 +263,50 @@ void MySubscriber::computerCenterPlane(){
         // Mandatory
         seg.setModelType (pcl::SACMODEL_PLANE);
         seg.setMethodType (pcl::SAC_RANSAC);
-        seg.setDistanceThreshold (50);
+        seg.setDistanceThreshold (PLANCE_DISTANCE_THRESHOLD);
 
-        seg.setInputCloud (centerCloud.makeShared ());
+        seg.setInputCloud (m_centerCloud.makeShared ());
         seg.segment (*inliers, *coefficients);
 
-        planeCoefficient[0]=coefficients->values[0];
-        planeCoefficient[1]=coefficients->values[1];
-        planeCoefficient[2]=coefficients->values[2];
-        planeCoefficient[3]=coefficients->values[3];
+        m_planeCoefficient[0]=coefficients->values[0];
+        m_planeCoefficient[1]=coefficients->values[1];
+        m_planeCoefficient[2]=coefficients->values[2];
+        m_planeCoefficient[3]=coefficients->values[3];
 
 
-        float dot = -1*planeCoefficient[2];
+        float dot = -1*m_planeCoefficient[2];
         if(dot<0){
-            planeCoefficient[0]*=-1;
-            planeCoefficient[1]*=-1;
-            planeCoefficient[2]*=-1;
+            m_planeCoefficient[0]*=-1;
+            m_planeCoefficient[1]*=-1;
+            m_planeCoefficient[2]*=-1;
             //            planeCoefficient[3]*=-1;
         }
 
-        pcl::compute3DCentroid<pcl::PointXYZRGB>(centerCloud,planeCentroid);
+        std::cout << "center cloud is " << m_centerCloud.size() << std::endl;
+        std::cout << "inliers is " << inliers->indices.size() << std::endl;
+
+
+        pcl::compute3DCentroid<pcl::PointXYZRGB>(m_centerCloud,m_planeCentroid);
 
     }
 }
 
 
 void MySubscriber::computeErrorPerPoint(){
-    errorCloud.clear();
+    m_errorCloud.clear();
     pcl::PointXYZRGB p;
     pcl::PointXYZRGB pp;
     Eigen::Vector3f res;
-    for(unsigned int i=0; i<cloud.size();i++){
-        p=cloud.at(i);
+    for(unsigned int i=0; i<m_cloud.size();i++){
+        p=m_cloud.at(i);
         pcl::geometry::project( Eigen::Vector3f(p.x,p.y,p.z),
-                                Eigen::Vector3f(planeCentroid(0),planeCentroid(1),planeCentroid(2)),
-                                Eigen::Vector3f(planeCoefficient(0),planeCoefficient(1),planeCoefficient(2)),
+                                Eigen::Vector3f(m_planeCentroid(0),m_planeCentroid(1),m_planeCentroid(2)),
+                                Eigen::Vector3f(m_planeCoefficient(0),m_planeCoefficient(1),m_planeCoefficient(2)),
                                 res);
         pp.x=res(0);
         pp.y=res(1);
         pp.z=res(2);
-        errorCloud.push_back(pp);
+        m_errorCloud.push_back(pp);
     }
 }
 
@@ -232,25 +314,25 @@ void MySubscriber::computeErrorPerPoint(){
 //WORLD REFERENCE FRAME POINT CLOUD COMPUTATION
 cv::Vec3f MySubscriber::localToWorld(cv::Vec3f localpoint)
 {
-    float fx_d=577.30;
+    /*float fx_d=577.30;
     float fy_d=579.41;
     float cx_d=319.5;
-    float cy_d=239.5;
+    float cy_d=239.5;*/
     cv::Vec3f worldpoint;
-    worldpoint[0]=(localpoint[0]-cx_d)*localpoint[2]/fx_d;
-    worldpoint[1]=(localpoint[1]-cy_d)*localpoint[2]/fy_d;
+    worldpoint[0]=(localpoint[0]-m_cx)*localpoint[2]/m_fx;
+    worldpoint[1]=(localpoint[1]-m_cy)*localpoint[2]/m_fy;
     worldpoint[2]=localpoint[2];
     return worldpoint;
 }
 
 pcl::PointXYZRGB  MySubscriber::worldToImagePlane( pcl::PointXYZRGB p){
-    float fx_d=577.30;
+    /*float fx_d=577.30;
     float fy_d=579.41;
     float cx_d=319.5;
-    float cy_d=239.5;
+    float cy_d=239.5;*/
     pcl::PointXYZRGB out;
-    out.x = (int)((fx_d*p.x/p.z)+cx_d);
-    out.y = (int)(cy_d-(fy_d*p.y/p.z));
+    out.x = (int)((m_fx*p.x/p.z)+m_cx);
+    out.y = (int)(m_cy-(m_fy*p.y/p.z));
     out.z = p.z;
     return out;
 }
@@ -259,29 +341,35 @@ void MySubscriber::computeCalibrationMatrix(){
 
 
 
-    if(recordData){
+    if(m_recordData){
         pcl::PointXYZRGB point;
         pcl::PointXYZRGB projected_point;
 
-        for(unsigned int i=0; i<cloud.size();i++){
-            point=cloud.at(i);
-            projected_point=errorCloud.at(i);
+        for(unsigned int i=0; i<m_cloud.size();i++){
+            point=m_cloud.at(i);
+            projected_point=m_errorCloud.at(i);
             Eigen::Vector3f diff = point.getVector3fMap() - projected_point.getVector3fMap();
             double measuredDistance= diff.norm();
 
             pcl::PointXYZRGB localPoint = worldToImagePlane(point);
-            if(localPoint.x>0 && localPoint.y>0 && validPoints.at(i)){
+            if(localPoint.x>0 && localPoint.y>0 && m_validPoints.at(i)){
 
-                if(point.z<projected_point.z)
-                    multiplier.cell(localPoint.y,
+                if(point.z<projected_point.z){
+                    std::cout << "z is smaller accesing cell at " << localPoint.y << " " << localPoint.x << " " << (measuredDistance+localPoint.z)/localPoint.z << std::endl;
+                    m_multiplier->cell(localPoint.y,
                                     localPoint.x,
                                     localPoint.z,(measuredDistance+localPoint.z)/localPoint.z);
-                if(point.z>projected_point.z)
-                    multiplier.cell(localPoint.y,
+                }
+
+                if(point.z>projected_point.z){
+                    std::cout << "z is bigger accesing cell at " << localPoint.y << " " << localPoint.x << " " << (measuredDistance+localPoint.z)/localPoint.z << std::endl;
+                    m_multiplier->cell(localPoint.y,
                                     localPoint.x,
                                     localPoint.z,(localPoint.z-measuredDistance)/localPoint.z);
+                }
 
-                multiplier.increment(localPoint.y,
+
+                m_multiplier->increment(localPoint.y,
                                      localPoint.x,
                                      localPoint.z);
 
@@ -304,13 +392,13 @@ void MySubscriber::computeCalibrationMatrix(){
 
 void MySubscriber::calibratePointCloudWithMultipliers(){
 
-    if(applyCorrection || 1){
+    if(m_applyCorrection || 1){
         pcl::PointXYZRGB point;
         pcl::PointXYZRGB projected_point;
         float averageError=0;
         float averageDistance=0;
-        for(unsigned int i=0; i<cloud.size();i++){
-            point=cloud.at(i);
+        for(unsigned int i=0; i<m_cloud.size();i++){
+            point=m_cloud.at(i);
             pcl::PointXYZRGB localPoint = worldToImagePlane(point);
             cv::Vec3f local(localPoint.x,localPoint.y,localPoint.z);
             cv::Vec3f tst =localToWorld(local);
@@ -318,77 +406,61 @@ void MySubscriber::calibratePointCloudWithMultipliers(){
 
             if(localPoint.x>0 && localPoint.y>0){
 
-                if(applyCorrection){
+                if(m_applyCorrection){
                     //                  cloud.at(i).z*= multiplier.cell(localPoint.y,localPoint.x,localPoint.z)/hits.cell(localPoint.y,localPoint.x,localPoint.z);
                     //                  cloud.at(i).z*= multiplier.cell(localPoint.y,localPoint.x,localPoint.z);
-                    localPoint.z*=multiplier.cell(localPoint.y,localPoint.x,localPoint.z);
+                    localPoint.z*=m_multiplier->cell(localPoint.y,localPoint.x,localPoint.z);
 //                  std::cout<< "MPLIER: "<<multiplier.cell(localPoint.y,localPoint.x,localPoint.z)<<std::endl;
                     cv::Vec3f local(localPoint.x,localPoint.y,localPoint.z);
                     cv::Vec3f tst =localToWorld(local);
-                    cloud.at(i).x=tst[0];
-                    cloud.at(i).y=-tst[1];
-                    cloud.at(i).z=tst[2];
-                    averageDistance+=cloud.at(i).z;
-                    averageError+=pow(cloud.at(i).z-(float)refenceDistance,2);
+                    m_cloud.at(i).x=tst[0];
+                    m_cloud.at(i).y=-tst[1];
+                    m_cloud.at(i).z=tst[2];
+                    averageDistance+=m_cloud.at(i).z;
+                    averageError+=pow(m_cloud.at(i).z-(float)m_refenceDistance,2);
                     //                                std::cout <<"\t readen "<< cloud.at(i).z << " has to be "<< refenceDistance<< " incremental error is " << averageError<<std::endl;
                 }
                 else{
-                    averageError+=pow(cloud.at(i).z-(float)refenceDistance,2);
-                    averageDistance+=cloud.at(i).z;
+                    averageError+=pow(m_cloud.at(i).z-(float)m_refenceDistance,2);
+                    averageDistance+=m_cloud.at(i).z;
                     //                                std::cout <<"\t readen "<< cloud.at(i).z << " has to be "<< refenceDistance<< " incremental error is " << averageError<<std::endl;
                 }
             }
 
 
         }
-        if(computeRefenceDistance){
-            std::cout <<"average distance "<<averageDistance/cloud.size() <<" average error "<<sqrt(averageError)/cloud.size()<<"mm" << std::endl;
+        if(m_computeRefenceDistance){
+            std::cout <<"average distance "<<averageDistance/m_cloud.size() <<" average error "<<sqrt(averageError)/m_cloud.size()<<"mm" << std::endl;
         }
     }
 }
 
 void MySubscriber::computeNormals(){
-    pcl::NormalEstimationOMP<pcl::PointXYZRGB, pcl::Normal> ne;
-    //        pcl::PointCloud<pcl::PointXYZ>::Ptr p(cloud.makeShared());
-    ne.setInputCloud (cloud.makeShared());
-    pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZRGB> ());
-    ne.setSearchMethod (tree);
-    cloud_normals.clear();
-    ne.setRadiusSearch (100); //MALCOM
-    ne.compute (cloud_normals);
-
-
-
-//    pcl::PointCloud<pcl::Normal>::Ptr normals (new pcl::PointCloud<pcl::Normal>);
-
-//    pcl::IntegralImageNormalEstimation<pcl::PointXYZRGB, pcl::Normal> ne;
-//    ne.setNormalEstimationMethod (ne.AVERAGE_DEPTH_CHANGE);
-//    ne.setMaxDepthChangeFactor(10.0f);
-//    ne.setNormalSmoothingSize(10.0f);
-//    cloud.width=640;
-//    cloud.height=480;
-//    cloud.points.resize(640*480);
-//    ne.setInputCloud(cloud.makeShared());
-//    cloud_normals.clear();
-//    ne.compute(cloud_normals);
+    pcl::IntegralImageNormalEstimation<pcl::PointXYZRGB, pcl::Normal> ne;
+    ne.setNormalEstimationMethod (ne.COVARIANCE_MATRIX);
+    ne.setMaxDepthChangeFactor(10.0f);
+    ne.setNormalSmoothingSize(10.0f);
+    ne.setInputCloud(m_cloud.makeShared());
+    m_cloud_normals.clear();
+    ne.compute(m_cloud_normals);
 }
 
 
 void MySubscriber::pointrejection(){
-    Eigen::Vector3f nReference(planeCoefficient[0],
-                               planeCoefficient[1],
-                               planeCoefficient[2]);
+    Eigen::Vector3f nReference(m_planeCoefficient[0],
+                               m_planeCoefficient[1],
+                               m_planeCoefficient[2]);
     pcl::Normal n;
-    validPoints.clear();
-    for(unsigned int i=0; i<cloud.size();i++){
-        n=cloud_normals.at(i);
+    m_validPoints.clear();
+    for(unsigned int i=0; i<m_cloud.size();i++){
+        n=m_cloud_normals.at(i);
         Eigen::Vector3f n1(n.normal_x,n.normal_y,n.normal_z);
         Eigen::Vector3f cross=n1.cross(nReference);
-        if(cross.norm()>normalRejection){
-            validPoints.push_back(false);
+        if(cross.norm()>m_normalRejection){
+            m_validPoints.push_back(false);
         }
         else{
-            validPoints.push_back(true);
+            m_validPoints.push_back(true);
         }
 
 
