@@ -13,11 +13,11 @@ using namespace std;
 
 class CalibrationMatrix{
 public:
-    CalibrationMatrix(int rows, int cols, int maxDepth, int tileSize, int depthRes);
+    CalibrationMatrix(int rows, int cols, float maxDepth, int tileSize, float depthRes);
     CalibrationMatrix(char* filename);
-    float cell(int r, int c, int d);
-    void cell(int r, int c, int d, float mply);
-    void increment(int r, int c, int d);
+    float cell(int r, int c, float d);
+    void cell(int r, int c, float d, float mply);
+    void increment(int r, int c, float d);
     void serialize(char* filename);
     void deserialize(char* filename);
     CalibrationMatrix* downsample(int dxy, int dd);
@@ -36,10 +36,10 @@ public:
     void getStats();
     float cellNN(int k,int r, int c, int d);
     float getFloat(int r, int c, int d);
-    int maxDepth;
+    float maxDepth;
     int tileSize;
     int tilePow;
-    int depthRes;
+    float depthRes;
     int depthPow;
     int rows;
     int cols;

@@ -50,7 +50,12 @@ void MySubscriber::callback(const sensor_msgs::CameraInfoConstPtr& cam_info_msg,
 
             //when we receive the first point cloud we will not the size to make out multiplier
             if (m_first_cloud){
-                m_multiplier = new CalibrationMatrix (cloud_msg->height,cloud_msg->width,12,1,1);
+                m_multiplier = new CalibrationMatrix (cloud_msg->height,        //max size in y
+                                                      cloud_msg->width,         //max size in x
+                                                      14.0,                       //max size in z (depth)
+                                                      1,                        //tilesize in x,y
+                                                      0.5                         //tilesize in z (depth)
+                                                      );
                 m_first_cloud=false;
             }
 
@@ -68,6 +73,7 @@ void MySubscriber::callback(const sensor_msgs::CameraInfoConstPtr& cam_info_msg,
             computePointcloud(cloud_msg);
 //            voxelize();
             computeCenterSquareCloud();
+            //computeCenterCloud();
             computerCenterPlane();
             computeNormals();
             pointrejection();
@@ -79,7 +85,7 @@ void MySubscriber::callback(const sensor_msgs::CameraInfoConstPtr& cam_info_msg,
 
 
 
-            std::cout << "plane centroid is " <<   m_planeCentroid(0);
+            //std::cout << "plane centroid is " <<   m_planeCentroid(0);
 
 
             QueuePayload payload;
@@ -96,58 +102,6 @@ void MySubscriber::callback(const sensor_msgs::CameraInfoConstPtr& cam_info_msg,
         }
 
 
-
-
-
-
-//    //dirty workaround to the encoding issue
-//	if (imgPtr->encoding == "16UC1"){
-//                        sensor_msgs::Image img;
-//                        img.header = imgPtr->header;
-//                        img.height = imgPtr->height;
-//                        img.width = imgPtr->width;
-//                        img.is_bigendian = imgPtr->is_bigendian;
-//                        img.step = imgPtr->step;
-//                        img.data = imgPtr->data;
-//                        img.encoding = "mono16";
-
-//                        _image = cv_bridge::toCvCopy(img, "mono16");
-//                    }
-
-
-
-
-//    //_image = cv_bridge::toCvCopy(imgPtr, "mono8");
-//    if(!this->queue->status())
-//    {
-//        this->queue->lock();
-
-//        //std::cout << "callback, started processing" << std::endl;
-
-
-//        computePointcloud();
-//        voxelize();
-//        computeCenterSquareCloud();
-//        //computeCenterCloud();
-//        computerCenterPlane();
-//        computeNormals();
-//        pointrejection();
-//        computeErrorPerPoint();
-//        computeCalibrationMatrix();
-//        calibratePointCloudWithMultipliers();
-
-//        QueuePayload payload;
-//        payload.cloud=this->cloud;
-//        payload.planeCentroid=this->planeCentroid;
-//        payload.planeCoefficient=this->planeCoefficient;
-//        payload.errorCloud=this->errorCloud;
-//        payload.correctCloud=this->correctCloud;
-//        payload.normals= this->cloud_normals;
-//        payload.validPoints=this->validPoints;
-//        this->queue->data=payload;
-//        this->_viewer->data=payload;
-//        this->queue->unlock();
-//    }
 }
 
 void MySubscriber::spin() {
@@ -176,19 +130,6 @@ void MySubscriber::computePointcloud(const sensor_msgs::PointCloud2ConstPtr& clo
     pcl::PCLPointCloud2::Ptr temp_cloud (new pcl::PCLPointCloud2 ());
     pcl_conversions::toPCL(*cloud_msg,*temp_cloud);
     pcl::fromPCLPointCloud2(*temp_cloud,m_cloud);
-
-    //make it bigger
-    for(int i=0; i< m_cloud.size();i++){
-//                cloud.points[i].x=cloud.points[i].x*100;
-//                cloud.points[i].y=cloud.points[i].y*100;
-//                cloud.points[i].z=cloud.points[i].z*100;
-//        if (!isnan(cloud.points[i].z) )
-//            std::cout << " " << cloud.points[i].x << " " << cloud.points[i].y << " " << cloud.points[i].z << std::endl;
-    }
-
-    //std::cout << "cloud height is " << cloud.height << std::endl;
-    //std::cout << "cloud size is " << cloud.size() << std::endl;
-
 
 }
 void MySubscriber::computeCenterSquareCloud(){
@@ -259,7 +200,7 @@ void MySubscriber::computerCenterPlane(){
         // Create the segmentation object
         pcl::SACSegmentation<pcl::PointXYZRGB> seg;
         // Optional
-        seg.setOptimizeCoefficients (true);
+        //seg.setOptimizeCoefficients (true);
         // Mandatory
         seg.setModelType (pcl::SACMODEL_PLANE);
         seg.setMethodType (pcl::SAC_RANSAC);
@@ -282,8 +223,8 @@ void MySubscriber::computerCenterPlane(){
             //            planeCoefficient[3]*=-1;
         }
 
-        std::cout << "center cloud is " << m_centerCloud.size() << std::endl;
-        std::cout << "inliers is " << inliers->indices.size() << std::endl;
+        //std::cout << "center cloud has size " << m_centerCloud.size() << std::endl;
+        //std::cout << "inliers has size " << inliers->indices.size() << std::endl;
 
 
         pcl::compute3DCentroid<pcl::PointXYZRGB>(m_centerCloud,m_planeCentroid);
@@ -355,14 +296,14 @@ void MySubscriber::computeCalibrationMatrix(){
             if(localPoint.x>0 && localPoint.y>0 && m_validPoints.at(i)){
 
                 if(point.z<projected_point.z){
-                    std::cout << "z is smaller accesing cell at " << localPoint.y << " " << localPoint.x << " " << (measuredDistance+localPoint.z)/localPoint.z << std::endl;
+                    //std::cout << "z is smaller accesing cell at " << localPoint.y << " " << localPoint.x << " " << (measuredDistance+localPoint.z)/localPoint.z << std::endl;
                     m_multiplier->cell(localPoint.y,
                                     localPoint.x,
                                     localPoint.z,(measuredDistance+localPoint.z)/localPoint.z);
                 }
 
                 if(point.z>projected_point.z){
-                    std::cout << "z is bigger accesing cell at " << localPoint.y << " " << localPoint.x << " " << (measuredDistance+localPoint.z)/localPoint.z << std::endl;
+                    //std::cout << "z is bigger accesing cell at " << localPoint.y << " " << localPoint.x << " " << (measuredDistance+localPoint.z)/localPoint.z << std::endl;
                     m_multiplier->cell(localPoint.y,
                                     localPoint.x,
                                     localPoint.z,(localPoint.z-measuredDistance)/localPoint.z);
@@ -457,10 +398,10 @@ void MySubscriber::pointrejection(){
         Eigen::Vector3f n1(n.normal_x,n.normal_y,n.normal_z);
         Eigen::Vector3f cross=n1.cross(nReference);
         if(cross.norm()>m_normalRejection){
-            m_validPoints.push_back(false);
+            m_validPoints.push_back(true);
         }
         else{
-            m_validPoints.push_back(true);
+            m_validPoints.push_back(false);
         }
 
 

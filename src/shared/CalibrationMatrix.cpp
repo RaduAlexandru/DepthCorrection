@@ -1,7 +1,28 @@
 #include "CalibrationMatrix.h"
 
-CalibrationMatrix::CalibrationMatrix(int rows, int cols, int maxDepth, int tileSize, int depthRes){
-    useKernel=false;
+
+float interpolate ( float input , float input_start, float input_end, float output_start, float output_end){
+
+  float output;
+  output = output_start + ((output_end - output_start) / (input_end - input_start)) * (input - input_start);
+
+  return output;
+
+}
+
+
+CalibrationMatrix::CalibrationMatrix(int rows, int cols, float maxDepth, int tileSize, float depthRes){
+//    useKernel=false;
+//    this->maxDepth=maxDepth;
+//    this->tileSize=tileSize;
+//    this->tilePow=log2(this->tileSize);
+//    this->depthRes=depthRes;
+//    this->depthPow=log2(this->depthRes);
+//    this->rows=rows/tileSize;
+//    this->cols=cols/tileSize;
+//    this->layers=this->maxDepth/this->depthRes;
+
+
     this->maxDepth=maxDepth;
     this->tileSize=tileSize;
     this->tilePow=log2(this->tileSize);
@@ -9,12 +30,14 @@ CalibrationMatrix::CalibrationMatrix(int rows, int cols, int maxDepth, int tileS
     this->depthPow=log2(this->depthRes);
     this->rows=rows/tileSize;
     this->cols=cols/tileSize;
-    this->layers=this->maxDepth/this->depthRes;
+    this->layers=std::ceil(this->maxDepth/this->depthRes);
 
 
 
     cerr << "tailsaiz: " << this->tileSize  << endl;
-    cerr << "allocating" << layers << "x" << this->rows << "x" << this->cols << " things" << endl;
+    cerr << "allocating" << layers << "x" << this->rows << "x" << this->cols << " cells" << endl;
+
+
     _data = new float**[layers];
     for (int i=0; i<layers; i++){
         _data[i] = new float* [rows];
@@ -133,25 +156,40 @@ void CalibrationMatrix::clear(){
 
 }
 
-float CalibrationMatrix::cell(int r, int c, int d){
+float CalibrationMatrix::cell(int r, int c, float d){
     if(d>this->layers*this->depthRes){
-    //printf("[WARNING] requested depth out of calib range\n");
+       printf("[WARNING] requested depth out of calib range\n");
         return 1;
     }
-    return _data[d>>depthPow][r>>tilePow][c>>tilePow]/_hits[d>>depthPow][r>>tilePow][c>>tilePow];
+
+    int z=std::floor (d/this->depthRes);
+    int y=std::floor (r/this->tileSize);
+    int x=std::floor (c/this->tileSize);
+
+
+    //return _data[d>>depthPow][r>>tilePow][c>>tilePow]/_hits[d>>depthPow][r>>tilePow][c>>tilePow];
+    return _data[z][y][x]/_hits[z][y][x];
 }
 
-void CalibrationMatrix::cell(int r, int c, int d, float mply){
+void CalibrationMatrix::cell(int r, int c, float d, float mply){
 
     //std::cout << "CalibrationMatrix::cell raw " << r  << " " << c << " " << d << std::endl;
 
-    int z=d>>depthPow;
-    int y=r>>tilePow;
-    int x=c>>tilePow;
+//    int z=d>>depthPow;
+//    int y=r>>tilePow;
+//    int x=c>>tilePow;
+//    std::cout << "CalibrationMatrix::cell data << " << y << " " << x << " " << z << std::endl;
 
-    std::cout << "CalibrationMatrix::cell data << " << y << " " << x << " " << z << std::endl;
-    _data[d>>depthPow][r>>tilePow][c>>tilePow]+=mply;
-    _covariance[d>>depthPow][r>>tilePow][c>>tilePow]+=mply*mply;
+      int z=std::floor (d/this->depthRes);
+      int y=std::floor (r/this->tileSize);
+      int x=std::floor (c/this->tileSize);
+
+
+    //std::cout << "CalibrationMatrix::cell input << " << d << " " << r << " " << c << std::endl;
+    //std::cout << "CalibrationMatrix::cell data acces << " << z << " " << y << " " << x << std::endl << std::endl;
+
+    _data[z][y][x]+=mply;
+    _covariance[z][y][x]+=mply*mply;
 
 }
 
@@ -173,11 +211,15 @@ float CalibrationMatrix::getFloat(int r, int c, int d){
     return _staticData[d>>depthPow][r>>tilePow][c>>tilePow];
 }
 
-void CalibrationMatrix::increment(int r, int c, int d){
+void CalibrationMatrix::increment(int r, int c, float d){
 
      //std::cout << "CalibrationMatrix::increment" << std::endl;
 
-    _hits[d>>depthPow][r>>tilePow][c>>tilePow]+=1.0f;
+    int z=std::floor (d/this->depthRes);
+    int y=std::floor (r/this->tileSize);
+    int x=std::floor (c/this->tileSize);
+
+    _hits[z][y][x]+=1.0f;
 
 }
 
@@ -448,47 +490,92 @@ CalibrationMatrix* CalibrationMatrix::downsample(int dxy, int dd){
 }
 
 void CalibrationMatrix::dumpSensorImages(){
-    for (int i=0; i<layers; i++){
-        cv::Mat errorImage(rows,cols,CV_32FC1);
-        cv::Mat error(rows,cols,CV_8UC1);
-        errorImage=cv::Mat::zeros(rows,cols,CV_32FC1);
-        cv::Point p;
-        for (int j=0; j< rows; j++){
 
+
+    //find the minimum (disregarding the 0) multiplier and the maximum multiplier
+    //the multipler with 0 should correspond to a value of 127 in the error image
+
+    float min=std::numeric_limits<float>::max();
+    float max=std::numeric_limits<float>::lowest();
+
+    for (int i=0; i<layers; i++){
+        for (int j=0; j< rows; j++){
             for (int k=0; k< cols; k++){
-                p.y=j;
-                p.x=k;
                 float v= _data[i][j][k]/_hits[i][j][k];
                 if(_hits[i][j][k]==1)v=0;
-                //                if(v==1){
-                //                    v=this->cellNN(1,j,k,i);
 
-                ////                    if(v!=1){
-                ////                        v=0;
-                ////                    }
-                //                }
+                if (v < min && v!=0) min=v;
+                if (v > max && v!=0) max=v;
 
-                errorImage.at<float>(p)=(v-1)*3000+127;
+                }
+
             }
 
-        }
-        cv::flip(errorImage,errorImage,0);
-        double min;
-        double max;
-        errorImage.convertTo(error,CV_8UC1);
-        cv::minMaxIdx(error,&min,&max);
-        std::cout <<"["<<i<<"]"<< " m: "<<min << " M: "<<max<<std::endl;
+      }
+
+    std::cout << "min max is" << min << " " << max << std::endl;
+
+    //values from 1 to max should be mapped to range 127 to 255
+    //values from min to 1 should be mapped to range 0 to 127
+    //then we can choose a colormap like the COLORMAP_JET that assigns red for the points that are pushed and blue for the ones that are pulled towards the camera
+
+
+
+    for (int i=0; i<layers; i++){
+
+        cv::Mat errorImage(rows,cols,CV_8UC1);
+        errorImage=cv::Mat::ones(rows,cols,CV_8UC1);
+        errorImage=errorImage*127; //Initialize it at 127 to indicate that no multiplier is applied (no pushing nor pullingS)
+
+        for (int j=0; j< rows; j++){
+            for (int k=0; k< cols; k++){
+                float v= _data[i][j][k]/_hits[i][j][k];
+                if(_hits[i][j][k]==1)v=0;
+
+                int interpolated_value;
+
+                if (v>1 && v!=0){
+                    interpolated_value= interpolate (v, 1,max, 127,255);
+                    errorImage.at<uchar>(j,k)=interpolated_value;
+                }
+                if (v<1 && v!=0){
+                    interpolated_value= interpolate (v, min,1, 0,127);
+                    errorImage.at<uchar>(j,k)=interpolated_value;
+                }
+
+
+
+             }
+
+         }
+
         cv::Mat dest;
         char filename[50];
-        for(int colormap =0;colormap<1;colormap++){
-            cv::applyColorMap(error,dest,colormap);
-            sprintf(filename,"layer_%d.pgm",i);
-            //            cv::resize(dest, dest, cv::Size(80,60), 0, 0, cv::INTER_CUBIC );
-            //            cv::resize(dest, dest, cv::Size(320,240), 0, 0, cv::INTER_CUBIC );
-            cv::imwrite(filename,dest);
+        cv::flip(errorImage,errorImage,0);
+        cv::applyColorMap(errorImage,dest,cv::COLORMAP_JET);
+
+        //all the pixels that are at 127 mean that they do not have any multipler so we assing them a color black so it doesnt interfere with the other colors
+        cv::Vec3b black;
+        black[0]=0;
+        black[1]=0;
+        black[2]=0;
+        for (int j=0; j< rows; j++){
+            for (int k=0; k< cols; k++){
+                if(errorImage.at<uchar>(j,k)==127){
+                    dest.at<cv::Vec3b>(j,k)=black;
+                }
+
+             }
+
         }
 
-    }
+
+        sprintf(filename,"layer_%d.pgm",i);
+        cv::imwrite(filename,dest);
+        std::cout << "saved image at layer: " << i <<std::endl;
+
+      }
+
 }
 
 
